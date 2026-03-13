@@ -71,6 +71,26 @@ cliskill closes this gap with a **holdout evaluation loop**:
 
 The holdout separation is architecturally load-bearing. The builder never sees the test scenarios. If it could, it would optimize for passing tests rather than implementing the spec correctly. This is the same principle behind train/test splits in ML — and it's why cliskill never auto-fixes failing tests. If the test is wrong, only a human should change it.
 
+## Distribution
+
+cliskill is distributed as an npm package for cross-platform one-command installation:
+
+```bash
+npx cliskill
+```
+
+The installer handles the full onboarding flow:
+
+1. **Prerequisite check** — verifies git and Python 3.10+ are available. If missing, prints OS-specific install guidance (e.g., `brew install git` on macOS, `winget install Git.Git` on Windows, `sudo apt install git` on Linux).
+2. **Platform detection** — auto-detects AI coding tools at two levels:
+   - **User-level** (global): Claude Code, VS Code + Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode
+   - **Project-level** (per-repo): GitHub Copilot (`.github/`), Cursor (`.cursor/`), Windsurf (`.windsurf/`), Cline (`.clinerules/`)
+   - Installs to **all** detected platforms simultaneously — a developer using both VS Code and Claude Code gets both.
+3. **Dependency installation** — clones `/clarity` and `/agent-skill-creator` into the primary platform's skill directory, then symlinks to others. No manual setup.
+4. **Cross-OS compatibility** — on Windows, falls back from symlinks to directory junctions (no admin required) to copy as a last resort. All three installers (Node.js, Bash, PowerShell) cover the same platform matrix.
+
+A user on a fresh machine with Node.js, git, and Python goes from zero to working `/cliskill` in one command. Dependencies are also auto-installed at runtime via `check_deps.py` if somehow missing after install — defense in depth.
+
 ## Architecture
 
 cliskill is a conductor, not an orchestra. It orchestrates two independent skills:
@@ -162,7 +182,9 @@ For a cliskill-produced skill, the quality signals are:
 
 ## Links
 
+- **Install**: `npx cliskill`
 - **Repository**: [github.com/FrancyJGLisboa/cliskill](https://github.com/FrancyJGLisboa/cliskill)
+- **npm**: [npmjs.com/package/cliskill](https://www.npmjs.com/package/cliskill)
 - **Dependency — /clarity**: [github.com/FrancyJGLisboa/clarity](https://github.com/FrancyJGLisboa/clarity)
 - **Dependency — /agent-skill-creator**: [github.com/FrancyJGLisboa/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)
 

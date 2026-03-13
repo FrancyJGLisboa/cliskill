@@ -37,42 +37,65 @@ $RepoDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 function Find-Platforms {
     $platforms = @()
 
+    # --- User-level platforms ---
+
     # Claude Code
-    $claudeDir = Join-Path $env:USERPROFILE ".claude"
-    if (Test-Path $claudeDir -PathType Container) {
+    if (Test-Path (Join-Path $env:USERPROFILE ".claude") -PathType Container) {
         $platforms += "claude"
     }
 
-    # Copilot CLI
-    $copilotDir = Join-Path $env:USERPROFILE ".copilot"
-    if (Test-Path $copilotDir -PathType Container) {
+    # VS Code / GitHub Copilot (user-level)
+    $hasCopilotDir = Test-Path (Join-Path $env:USERPROFILE ".copilot") -PathType Container
+    $hasVSCode = Get-Command code -ErrorAction SilentlyContinue
+    if ($hasCopilotDir -or $hasVSCode) {
         $platforms += "copilot"
     }
 
-    # Universal path (Codex CLI, Gemini CLI, Kiro, Antigravity)
-    $agentsDir = Join-Path $env:USERPROFILE ".agents"
-    $hasCodex = Get-Command codex -ErrorAction SilentlyContinue
-    $hasGemini = Get-Command gemini -ErrorAction SilentlyContinue
-    if ((Test-Path $agentsDir -PathType Container) -or $hasCodex -or $hasGemini) {
-        $platforms += "universal"
+    # Cursor (user-level)
+    if (Test-Path (Join-Path $env:USERPROFILE ".cursor") -PathType Container) {
+        $platforms += "cursor"
+    }
+
+    # Windsurf (detected via Codeium config)
+    if (Test-Path (Join-Path $env:USERPROFILE ".codeium" "windsurf") -PathType Container) {
+        $platforms += "windsurf"
     }
 
     # Gemini CLI
-    $geminiDir = Join-Path $env:USERPROFILE ".gemini"
-    if (Test-Path $geminiDir -PathType Container) {
+    if (Test-Path (Join-Path $env:USERPROFILE ".gemini") -PathType Container) {
         $platforms += "gemini"
     }
 
+    # Codex CLI
+    $hasCodexDir = Test-Path (Join-Path $env:USERPROFILE ".codex") -PathType Container
+    $hasCodex = Get-Command codex -ErrorAction SilentlyContinue
+    if ($hasCodexDir -or $hasCodex) {
+        $platforms += "codex"
+    }
+
     # Goose
-    $gooseDir = Join-Path $env:USERPROFILE ".config" "goose"
-    if (Test-Path $gooseDir -PathType Container) {
+    if (Test-Path (Join-Path $env:USERPROFILE ".config" "goose") -PathType Container) {
         $platforms += "goose"
     }
 
     # OpenCode
-    $opencodeDir = Join-Path $env:USERPROFILE ".config" "opencode"
-    if (Test-Path $opencodeDir -PathType Container) {
+    if (Test-Path (Join-Path $env:USERPROFILE ".config" "opencode") -PathType Container) {
         $platforms += "opencode"
+    }
+
+    # --- Project-level platforms ---
+
+    if (Test-Path ".github" -PathType Container) {
+        $platforms += "copilot-project"
+    }
+    if (Test-Path ".cursor" -PathType Container) {
+        $platforms += "cursor-project"
+    }
+    if (Test-Path ".windsurf" -PathType Container) {
+        $platforms += "windsurf-project"
+    }
+    if (Test-Path ".clinerules" -PathType Container) {
+        $platforms += "cline-project"
     }
 
     # Default to Claude Code if nothing detected
@@ -156,12 +179,18 @@ function Install-ToPlatform {
     param([string]$Platform)
 
     $base = switch ($Platform) {
-        "claude"   { Join-Path $env:USERPROFILE ".claude" "skills" }
-        "copilot"  { Join-Path $env:USERPROFILE ".copilot" "skills" }
-        "universal" { Join-Path $env:USERPROFILE ".agents" "skills" }
-        "gemini"   { Join-Path $env:USERPROFILE ".gemini" "skills" }
-        "goose"    { Join-Path $env:USERPROFILE ".config" "goose" "skills" }
-        "opencode" { Join-Path $env:USERPROFILE ".config" "opencode" "skills" }
+        "claude"           { Join-Path $env:USERPROFILE ".claude" "skills" }
+        "copilot"          { Join-Path $env:USERPROFILE ".copilot" "skills" }
+        "cursor"           { Join-Path $env:USERPROFILE ".cursor" "rules" }
+        "windsurf"         { Join-Path $env:USERPROFILE ".windsurf" "rules" }
+        "gemini"           { Join-Path $env:USERPROFILE ".gemini" "skills" }
+        "codex"            { Join-Path $env:USERPROFILE ".codex" "skills" }
+        "goose"            { Join-Path $env:USERPROFILE ".config" "goose" "skills" }
+        "opencode"         { Join-Path $env:USERPROFILE ".config" "opencode" "skills" }
+        "copilot-project"  { Join-Path "." ".github" "skills" }
+        "cursor-project"   { Join-Path "." ".cursor" "rules" }
+        "windsurf-project" { Join-Path "." ".windsurf" "rules" }
+        "cline-project"    { Join-Path "." ".clinerules" }
     }
 
     Write-Host "  Platform: $Platform ($base)"

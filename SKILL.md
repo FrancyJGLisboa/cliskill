@@ -65,12 +65,19 @@ Load these on demand when entering the relevant phase:
 
 ## Dependencies
 
-cliskill orchestrates two existing skills. Both must be installed:
+cliskill orchestrates two existing skills:
 
 - **`/clarity`** — Specification engine (INGEST → SPECIFY → SCENARIO → HANDOFF → EVALUATE)
 - **`/agent-skill-creator`** — Implementation engine (Discovery → Design → Architecture → Detection → Implementation)
 
-Run `python3 scripts/check_deps.py` to verify both are available.
+**Before starting any pipeline run**, check dependencies by running `python3 scripts/check_deps.py`. The script will:
+
+1. **Detect the user's platform** (Claude Code, Cursor, Copilot, Windsurf, Cline, Codex, Gemini, Goose, OpenCode)
+2. **Check if both skills are installed** in the detected platform's skill directory
+3. **Auto-install any missing dependency** via `git clone --depth 1` to the appropriate location
+4. If auto-install fails (no git, no network, no platform detected), print manual install instructions
+
+This means a fresh user running `/cliskill` for the first time gets dependencies installed automatically — no manual setup required.
 
 ## Invocation Model
 
@@ -353,8 +360,8 @@ Artifacts:
 
 | Situation | Action |
 |-----------|--------|
-| `/clarity` not installed | Print install instructions, stop |
-| `/agent-skill-creator` not installed | Print install instructions, stop |
+| `/clarity` not installed | Auto-install via `check_deps.py`; if auto-install fails, print manual instructions and stop |
+| `/agent-skill-creator` not installed | Auto-install via `check_deps.py`; if auto-install fails, print manual instructions and stop |
 | Clarity fails mid-phase | Save partial state, allow `/cliskill resume` |
 | Agent-skill-creator validation fails repeatedly | Escalate — likely a spec issue masquerading as impl failure |
 | Network error during reference ingestion | Retry once, then ask user for local copy |

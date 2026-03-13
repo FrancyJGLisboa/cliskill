@@ -16,35 +16,42 @@ API References → SPECIFY → [Review] → BUILD → VERIFY → DEPLOY
 
 The human provides references and reviews twice. Everything between is autonomous.
 
-## Prerequisites
-
-Both skills must be installed:
-
-- **[/clarity](https://github.com/FrancyJGLisboa/clarity)** — Specification engine
-- **[/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)** — Implementation engine
-
 ## Install
 
-### One-liner (any platform with npm)
+### Recommended: `npx` (any OS)
 
 ```bash
-npx skills add FrancyJGLisboa/cliskill -g
+npx cliskill
 ```
 
-The `-g` flag installs globally (available across all projects). cliskill is a meta-tool that builds other skills — it should always be global, not scoped to a single repo.
+That's it. The installer:
 
-### macOS / Linux
+1. Checks prerequisites (git, Python 3.10+) with OS-specific install guidance if missing
+2. Detects your AI coding tool (Claude Code, Cursor, Copilot, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline)
+3. Installs cliskill **and both dependencies** (`/clarity`, `/agent-skill-creator`) automatically
+4. On Windows, falls back to directory junctions or copy if symlinks need admin
+
+```bash
+npx cliskill --dry-run     # Preview without changes
+npx cliskill --uninstall   # Remove everything
+```
+
+### Alternative: git clone
+
+**macOS / Linux:**
 
 ```bash
 git clone https://github.com/FrancyJGLisboa/cliskill
 cd cliskill
-./scripts/install.sh
+./scripts/install.sh --with-deps
 ```
 
-To also install missing dependencies:
+**Windows (PowerShell):**
 
-```bash
-./scripts/install.sh --with-deps
+```powershell
+git clone https://github.com/FrancyJGLisboa/cliskill
+cd cliskill
+.\scripts\install.ps1 -WithDeps
 ```
 
 Other options:
@@ -54,30 +61,16 @@ Other options:
 ./scripts/install.sh --uninstall    # Remove symlinks
 ```
 
-### Windows (PowerShell)
+### Dependencies
 
-```powershell
-git clone https://github.com/FrancyJGLisboa/cliskill
-cd cliskill
-.\scripts\install.ps1
-```
+cliskill depends on two skills — both are **auto-installed** by the `npx` installer and by `--with-deps`:
 
-With dependencies:
+- **[/clarity](https://github.com/FrancyJGLisboa/clarity)** — Specification engine
+- **[/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)** — Implementation engine
 
-```powershell
-.\scripts\install.ps1 -WithDeps
-```
+If you skip `--with-deps`, dependencies are still auto-installed at runtime when you first run `/cliskill`.
 
-Other options:
-
-```powershell
-.\scripts\install.ps1 -DryRun      # Preview without changes
-.\scripts\install.ps1 -Uninstall   # Remove symlinks/junctions
-```
-
-> **Note:** On Windows, symlinks require Developer Mode or admin privileges. The installer falls back to directory junctions (no admin needed), then to copy as a last resort.
-
-### Verify dependencies
+To verify manually:
 
 ```bash
 python3 scripts/check_deps.py      # macOS/Linux
@@ -156,28 +149,47 @@ The CLI skills produced by cliskill aren't just API wrappers. They include:
 
 ## Platform Support
 
-| Platform | Detection |
-|----------|-----------|
-| Claude Code | `~/.claude` |
-| GitHub Copilot | `~/.copilot` |
-| Gemini CLI | `~/.gemini` |
-| Codex CLI | `~/.agents` |
-| Goose | `~/.config/goose` |
-| OpenCode | `~/.config/opencode` |
+**User-level** (global — available across all projects):
+
+| Platform | Detection | Install path |
+|----------|-----------|-------------|
+| Claude Code | `~/.claude/` | `~/.claude/skills/` |
+| VS Code + Copilot | `~/.copilot/` or `code` in PATH | `~/.copilot/skills/` |
+| Cursor | `~/.cursor/` | `~/.cursor/rules/` |
+| Windsurf | `~/.codeium/windsurf/` | `~/.windsurf/rules/` |
+| Gemini CLI | `~/.gemini/` | `~/.gemini/skills/` |
+| Codex CLI | `~/.codex/` | `~/.codex/skills/` |
+| Goose | `~/.config/goose/` | `~/.config/goose/skills/` |
+| OpenCode | `~/.config/opencode/` | `~/.config/opencode/skills/` |
+
+**Project-level** (scoped to current repo):
+
+| Platform | Detection | Install path |
+|----------|-----------|-------------|
+| GitHub Copilot | `.github/` in project | `.github/skills/` |
+| Cursor | `.cursor/` in project | `.cursor/rules/` |
+| Windsurf | `.windsurf/` in project | `.windsurf/rules/` |
+| Cline | `.clinerules/` in project | `.clinerules/` |
+
+If no platform is detected, defaults to Claude Code. The installer installs to **all** detected platforms simultaneously.
 
 ## Architecture
 
 ```
 cliskill/
 ├── SKILL.md                        # The pipeline specification
+├── package.json                    # npm package for npx installer
+├── bin/
+│   └── install.mjs                 # Cross-platform Node.js installer
 ├── references/
 │   ├── evaluation-router.md        # Failure classification + routing
 │   ├── loop-protocol.md            # State tracking + convergence rules
 │   └── examples.md                 # Happy path + fix loop examples
 ├── scripts/
-│   ├── check_deps.py               # Dependency checker
-│   ├── install.sh                  # Installer (macOS/Linux)
-│   └── install.ps1                 # Installer (Windows PowerShell)
+│   ├── check_deps.py               # Dependency checker + auto-installer
+│   ├── install.sh                  # Shell installer (macOS/Linux)
+│   └── install.ps1                 # PowerShell installer (Windows)
+├── APPLICATION_CARD.md
 ├── README.md
 └── LICENSE
 ```

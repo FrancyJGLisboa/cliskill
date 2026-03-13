@@ -42,24 +42,36 @@ done
 detect_platforms() {
     platforms=""
 
+    # --- User-level platforms ---
+
     # Claude Code
     if [ -d "$HOME/.claude" ]; then
         platforms="$platforms claude"
     fi
 
-    # Copilot CLI
-    if [ -d "$HOME/.copilot" ]; then
+    # VS Code / GitHub Copilot (user-level skills)
+    if [ -d "$HOME/.copilot" ] || command -v code >/dev/null 2>&1; then
         platforms="$platforms copilot"
     fi
 
-    # Universal path (Codex CLI, Gemini CLI, Kiro, Antigravity)
-    if [ -d "$HOME/.agents" ] || command -v codex >/dev/null 2>&1 || command -v gemini >/dev/null 2>&1; then
-        platforms="$platforms universal"
+    # Cursor (user-level)
+    if [ -d "$HOME/.cursor" ]; then
+        platforms="$platforms cursor"
+    fi
+
+    # Windsurf (detected via Codeium config)
+    if [ -d "$HOME/.codeium/windsurf" ]; then
+        platforms="$platforms windsurf"
     fi
 
     # Gemini CLI
     if [ -d "$HOME/.gemini" ]; then
         platforms="$platforms gemini"
+    fi
+
+    # Codex CLI
+    if [ -d "$HOME/.codex" ] || command -v codex >/dev/null 2>&1; then
+        platforms="$platforms codex"
     fi
 
     # Goose
@@ -70,6 +82,28 @@ detect_platforms() {
     # OpenCode
     if [ -d "$HOME/.config/opencode" ]; then
         platforms="$platforms opencode"
+    fi
+
+    # --- Project-level platforms (from cwd) ---
+
+    # GitHub Copilot (project-level)
+    if [ -d ".github" ]; then
+        platforms="$platforms copilot-project"
+    fi
+
+    # Cursor (project-level)
+    if [ -d ".cursor" ]; then
+        platforms="$platforms cursor-project"
+    fi
+
+    # Windsurf (project-level)
+    if [ -d ".windsurf" ]; then
+        platforms="$platforms windsurf-project"
+    fi
+
+    # Cline (project-level — VS Code extension)
+    if [ -d ".clinerules" ]; then
+        platforms="$platforms cline-project"
     fi
 
     # Default to Claude Code if nothing detected
@@ -128,12 +162,18 @@ link() {
 install_to_platform() {
     platform="$1"
     case "$platform" in
-        claude)   base="$HOME/.claude/skills" ;;
-        copilot)  base="$HOME/.copilot/skills" ;;
-        universal) base="$HOME/.agents/skills" ;;
-        gemini)   base="$HOME/.gemini/skills" ;;
-        goose)    base="$HOME/.config/goose/skills" ;;
-        opencode) base="$HOME/.config/opencode/skills" ;;
+        claude)           base="$HOME/.claude/skills" ;;
+        copilot)          base="$HOME/.copilot/skills" ;;
+        cursor)           base="$HOME/.cursor/rules" ;;
+        windsurf)         base="$HOME/.windsurf/rules" ;;
+        gemini)           base="$HOME/.gemini/skills" ;;
+        codex)            base="$HOME/.codex/skills" ;;
+        goose)            base="$HOME/.config/goose/skills" ;;
+        opencode)         base="$HOME/.config/opencode/skills" ;;
+        copilot-project)  base=".github/skills" ;;
+        cursor-project)   base=".cursor/rules" ;;
+        windsurf-project) base=".windsurf/rules" ;;
+        cline-project)    base=".clinerules" ;;
     esac
 
     echo "  Platform: $platform ($base)"
