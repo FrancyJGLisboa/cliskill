@@ -131,6 +131,23 @@ When you have a repo and want to find out what it can do — cross-referenced ag
 
 Discovery mode analyzes the repo's data structures, functions, and libraries, extracts methods from the knowledge material, cross-references them to find what's feasible, and ranks by importance × effort. You pick which analytics to include, then the standard pipeline builds and verifies the skill.
 
+### Research mode (continuous optimization)
+
+When you have a model or pipeline and want to optimize a continuous metric (RMSE, Pearson r, F1) rather than hit binary pass/fail:
+
+```
+/cliskill research <capability-refs> [-- <knowledge-refs>]
+```
+
+**Examples:**
+
+```
+/cliskill research ./my-ml-pipeline -- ./methodology-paper.pdf "optimize RMSE for yield prediction"
+/cliskill research https://github.com/user/forecasting-repo -- ./domain-guide.pdf
+```
+
+Research mode combines discovery (what can this code do?) with metric negotiation (what does "better" mean?) and runs an autonomous optimization loop — proposing changes, evaluating them, classifying failures, and keeping or reverting. It brings cliskill's rigor (failure classification, convergence detection, guided escalation) to the autoresearch pattern of continuous improvement.
+
 ### Resume an interrupted pipeline
 
 ```
@@ -188,6 +205,18 @@ When you don't know what the skill should do — you have a repo and reference m
 4. **Ranks** by importance × effort into tiers (quick wins, worth building, stretch goals)
 5. **You select** which analytics to include, then the pipeline builds and verifies
 
+### Research Mode
+
+When you need continuous optimization rather than binary pass/fail, research mode runs the autoresearch loop with cliskill's rigor:
+
+1. **DISCOVER** — inventory capabilities, extract methods from knowledge sources
+2. **NEGOTIATE** — define what "better" means via a metric-compiler conversation
+3. **BOOTSTRAP** — generate the optimization harness, verify the metric against known cases
+4. **OPTIMIZE** — PROPOSE → RUN → CLASSIFY → KEEP/REVERT, with experiment classification (implementation bug, destructive hypothesis, exhausted direction, neutral result) and strategy class tracking
+5. **REVIEW** — present Pareto front and strategy summary; human accepts, refines metric, or continues
+
+The loop runs until convergence stalls across multiple strategy classes, then escalates with guided review.
+
 ### Update Mode
 
 When the API changes, `cliskill update` avoids starting from scratch. It diffs the new references against the existing spec, shows you what's new/changed/deprecated, and only re-specs the delta. All existing scenarios are re-run to catch regressions.
@@ -243,8 +272,10 @@ cliskill/
 ├── bin/
 │   └── install.mjs                 # Cross-platform Node.js installer
 ├── references/
+│   ├── discovery-protocol.md       # Capability extraction + feasibility
 │   ├── evaluation-router.md        # Failure classification + routing
 │   ├── loop-protocol.md            # State tracking + convergence rules
+│   ├── research-protocol.md       # Continuous optimization loops
 │   └── examples.md                 # Happy path + fix loop examples
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker + auto-installer

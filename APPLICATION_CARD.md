@@ -111,6 +111,10 @@ Human provides references
     │ DISCOVER? │  ← If repo + knowledge: extract capabilities, cross-reference,
     └────┬──────┘    rank feasible analytics, user selects
          ↓
+    ┌───────────┐
+    │ RESEARCH? │  ← If continuous metric: NEGOTIATE → BOOTSTRAP → OPTIMIZE loop
+    └────┬──────┘    (PROPOSE → RUN → CLASSIFY → KEEP/REVERT until convergence)
+         ↓
     ┌──────────┐
     │ UPDATE?  │  ← If updating: diff new refs against existing spec
     └────┬─────┘
@@ -168,6 +172,7 @@ The evolution is concrete:
 | **Auto-fixes and rebuilds** | No | Yes — up to 3 loops |
 | **Guided escalation** | No — always ships | Yes — walks user through each failure interactively |
 | **Discovery mode** | No — user must know what to build | Yes — cross-references repo capabilities against knowledge sources, ranks feasibility |
+| **Research mode** | No — binary pass/fail only | Yes — continuous metric optimization with experiment classification and convergence detection |
 | **Update mode** | No — rebuild from scratch | Yes — diffs new refs against existing spec, preserves passing behavior |
 | **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
 
@@ -182,6 +187,7 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 **cliskill is good at:**
 - APIs with documentation (REST, GraphQL, well-documented libraries)
 - Repos with code + reference material (discover mode: cross-reference capabilities against methods)
+- Continuous metric optimization (research mode: RMSE, Pearson r, F1 — any scalar metric with an eval harness)
 - Tools with clear input/output contracts
 - Skills that can be expressed as CLI commands with structured output
 
@@ -189,7 +195,8 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 - Real-time streaming APIs (WebSockets, SSE) — CLI is request/response
 - APIs requiring complex OAuth flows with browser redirects — needs human setup
 - Skills that require persistent state across invocations — CLI is stateless by design
-- Replacing human judgment on spec review — the two review gates exist for a reason
+- Metrics without deterministic evaluation — if you can't write `metric.py`, research mode can't optimize
+- Replacing human judgment on spec review — the review gates exist for a reason
 
 ## Metrics That Matter
 

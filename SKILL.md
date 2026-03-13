@@ -10,7 +10,8 @@ description: >-
   Triggers on: cliskill, build cli skill, agent-friendly cli, api to cli skill,
   end-to-end skill pipeline, create and verify skill, update existing skill,
   api changed update skill, discover what analytics are possible, turn repo
-  into agent skill, cross-reference repo with course material.
+  into agent skill, cross-reference repo with course material, optimize model
+  metrics, continuous optimization loop, research mode, autoresearch with cliskill.
 license: MIT
 metadata:
   author: Francy Lisboa Charuto
@@ -36,6 +37,7 @@ The human provides references and reviews twice. Everything else is autonomous.
 /cliskill resume
 /cliskill update <existing-skill-path> <new-reference-1> [<new-reference-2> ...]
 /cliskill discover <capability-ref-1> [<capability-ref-2> ...] -- <knowledge-ref-1> [<knowledge-ref-2> ...]
+/cliskill research <capability-ref-1> [<capability-ref-2> ...] -- <knowledge-ref-1> [<knowledge-ref-2> ...]
 ```
 
 References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions — anything `/clarity` can ingest.
@@ -48,6 +50,7 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill update ./weather-api-skill https://api.example.com/docs/v2
 /cliskill discover https://github.com/john/portfolio-repo -- ./course-materials/quantitative-finance.pdf
 /cliskill discover ./my-data-pipeline -- ./analytics-textbook.pdf "focus on risk analytics"
+/cliskill research ./my-ml-pipeline -- ./methodology-paper.pdf "optimize RMSE for yield prediction"
 ```
 
 The `--` separator in discover mode separates capability sources (repos, code, data) from knowledge sources (courses, textbooks, methodology docs). If omitted, the agent classifies each reference automatically.
@@ -159,6 +162,7 @@ Load these on demand when entering the relevant phase:
 | `references/discovery-protocol.md` | Entering DISCOVER mode |
 | `references/evaluation-router.md` | Entering VERIFY phase or REPAIR LOOP |
 | `references/loop-protocol.md` | Entering REPAIR LOOP or processing `/cliskill resume` |
+| `references/research-protocol.md` | Entering RESEARCH mode |
 | `references/examples.md` | When needing pattern reference for any phase |
 
 ## Dependencies
@@ -199,6 +203,9 @@ On every invocation, check for existing state:
 ```
 if command is "/cliskill discover <refs> [-- <knowledge-refs>]":
     → enter DISCOVER mode (see Phase D: DISCOVER below)
+
+else if command is "/cliskill research <refs> [-- <knowledge-refs>]":
+    → enter RESEARCH mode (see Phase R: RESEARCH below)
 
 else if command is "/cliskill update <skill-path> <refs>":
     → enter UPDATE mode (see Phase 0: UPDATE below)
@@ -329,6 +336,50 @@ Update state:
 ```
 
 From here, the pipeline follows the standard flow: SPECIFY → Review Gate 1 → BUILD → VERIFY → DEPLOY.
+
+---
+
+## Phase R: RESEARCH (conditional)
+
+**Entry:** `/cliskill research <capability-refs> [-- <knowledge-refs>]`
+
+**Load:** `references/research-protocol.md`, `references/discovery-protocol.md`
+
+Research mode handles continuous optimization — the loop doesn't terminate on "pass" but keeps running as long as the metric is converging. It uses DISCOVER + metric negotiation + the autoresearch optimization loop (PROPOSE → RUN → CLASSIFY → KEEP/REVERT), with cliskill's rigor: failure classification, convergence detection, and guided escalation.
+
+### Instructions
+
+1. **DISCOVER.** Run the standard discovery pipeline (Phase D) to inventory capabilities and extract methods from knowledge sources. The discovery report's ranked capabilities inform which strategy classes to prioritize.
+
+2. **NEGOTIATE.** Metric-compiler conversation with the human:
+   - Ask 5 scenario questions to understand what "better" means
+   - Propose 2 candidate metrics with tradeoff explanations
+   - Human picks the metric (or defines their own)
+
+3. **BOOTSTRAP.** Generate `program.md` + `metric.py` + `eval_harness.py`. Dry-run 2–3 experiments to verify the loop works end-to-end. Run metric verification against known-good and known-bad cases before entering OPTIMIZE.
+
+4. **OPTIMIZE.** The autoresearch loop — PROPOSE → RUN → CLASSIFY → KEEP/REVERT. Experiments are classified per the decision tree in `references/research-protocol.md`. The loop runs until convergence stalls (see convergence detection rules in the reference).
+
+5. **REVIEW.** Present results interactively: best model, strategy summary, Pareto front, recommendations. Human picks: continue, refine metric, or accept current best.
+
+### State
+
+```
+.cliskill/state.md:
+  mode: research
+  phase: {DISCOVER | NEGOTIATE | BOOTSTRAP | OPTIMIZE | REVIEW}
+  status: {in_progress | pending_review | stalled | complete}
+  metric_name: {name}
+  metric_score_best: {score}
+  metric_score_baseline: {score}
+  experiment_count: {N}
+  kept_count: {M}
+  current_strategy_class: {name}
+  exhausted_classes: [{list}]
+  last_5_outcomes: [{list}]
+```
+
+See `references/research-protocol.md` for the full protocol: experiment classification decision tree, strategy class tracking, convergence detection, metric verification, guided review format, and loop invariants.
 
 ---
 
