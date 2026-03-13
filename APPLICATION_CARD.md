@@ -1,0 +1,143 @@
+# Application Card: cliskill
+
+## Problem
+
+AI agents need to use APIs. The naive approach is to load API documentation into the agent's context window. This doesn't scale.
+
+A single API reference can consume 50,000+ tokens. Two or three APIs and the agent has burned its context window before it starts reasoning. The agent becomes slow, expensive, and confused — drowning in endpoint specifications when it should be solving the user's problem.
+
+The deeper issue: **agents don't need to understand APIs. They need to understand tools.**
+
+A human developer reads API docs once, builds a mental model, and then works from that model — not by re-reading the docs on every call. Agents should work the same way, but they can't build persistent mental models across sessions. Every conversation starts from zero.
+
+## Solution
+
+cliskill compresses API documentation into CLI tools that agents can wield without understanding the underlying API.
+
+```
+Raw API docs (50,000+ tokens)
+    → clarity extracts what matters
+Verified spec + holdout scenarios
+    → agent-skill-creator builds the CLI
+SKILL.md (~300 lines) + scripts (agent never reads)
+    → agent activates the skill in ~500 tokens
+```
+
+The result is a CLI skill where:
+
+- The **SKILL.md** tells the agent what commands exist, when to use them, and when not to (~300 lines, loaded only when relevant)
+- The **scripts/** contain the actual API logic (the agent calls them, never reads them)
+- The **anti-goals** tell the agent what to honestly refuse
+- The **error handling** tells the agent how to fail gracefully
+
+A 50,000-token API reference becomes a 500-token tool activation. The agent spends its context on reasoning, not on understanding its tools.
+
+## Why CLI
+
+CLI is the universal interface for agent tooling. Every major agent platform — Claude Code, Copilot, Gemini CLI, Codex, Cursor, Goose — can execute shell commands. No SDK integration, no plugin API, no platform-specific adapter.
+
+A CLI skill works everywhere because:
+
+1. **Execution is trivial.** The agent runs a shell command and reads stdout.
+2. **Interfaces are self-documenting.** `--help`, structured output, exit codes.
+3. **Composition is natural.** Agents can pipe, chain, and combine CLI tools the same way humans do.
+4. **Isolation is free.** The skill runs in its own process. No shared state, no dependency conflicts, no context pollution.
+
+## Why "Agent-Friendly" Matters
+
+A traditional CLI tool is designed for humans. An agent-friendly CLI skill is designed for agents. The difference:
+
+| Aspect | Human CLI | Agent-Friendly Skill |
+|--------|-----------|---------------------|
+| **Discovery** | `man` pages, README | SKILL.md with activation triggers — the agent knows *when* to reach for this tool based on user intent |
+| **Scope** | Feature-rich, many flags | Focused on the 80% path — 4-6 analyses, not 40 endpoints |
+| **Limitations** | Implied, learned through experience | Explicit anti-goals — the agent knows what *not* to attempt |
+| **Failure** | Stack traces, error codes | Guided failure — the agent knows what to tell the user and what to try next |
+| **Context cost** | Irrelevant to humans | Minimal activation footprint — metadata first, full instructions only when needed |
+
+The critical property: **an agent reading only the SKILL.md should be able to use the tool correctly, know its limits, and fail gracefully.** If the agent needs to read the source code or API docs to use the skill, the skill has failed.
+
+## The Verification Gap
+
+Generating CLI wrappers around APIs is easy. Generating CLI wrappers that *actually work correctly* is hard. The gap between "code that looks right" and "code that handles edge cases" is where most auto-generated tools fail silently.
+
+cliskill closes this gap with a **holdout evaluation loop**:
+
+1. `/clarity` generates a spec and holdout test scenarios from the API docs
+2. `/agent-skill-creator` builds the CLI skill from the spec
+3. The skill is tested against the holdout scenarios — scenarios the builder never saw
+4. Failures are classified (spec gap? implementation gap? test gap?) and auto-fixed
+5. Repeat until all scenarios pass, or escalate to a human
+
+The holdout separation is architecturally load-bearing. The builder never sees the test scenarios. If it could, it would optimize for passing tests rather than implementing the spec correctly. This is the same principle behind train/test splits in ML — and it's why cliskill never auto-fixes failing tests. If the test is wrong, only a human should change it.
+
+## Architecture
+
+cliskill is a conductor, not an orchestra. It orchestrates two independent skills:
+
+- **`/clarity`** — Reads messy references, produces verified specifications and holdout scenarios
+- **`/agent-skill-creator`** — Takes specifications, produces deployed CLI skills on 14+ platforms
+
+Neither skill has an evaluation-fix-rebuild loop. cliskill adds that loop — the piece that turns "generate once and hope" into "generate, verify, fix, verify again."
+
+```
+Human provides API references
+         ↓
+    ┌─────────┐
+    │ SPECIFY │  ← /clarity (ingest, spec, scenarios, handoff)
+    └────┬────┘
+         ↓
+   [Review Gate 1]  ← Human approves spec
+         ↓
+    ┌─────────┐
+    │  BUILD  │  ← /agent-skill-creator (architecture, detection, implementation)
+    └────┬────┘
+         ↓
+    ┌─────────┐
+    │ VERIFY  │  ← /clarity evaluate (holdout scenarios)
+    └────┬────┘
+         ↓
+     Pass? ──yes──→ [Review Gate 2] → DEPLOY
+         │
+         no
+         ↓
+    ┌──────────┐
+    │  REPAIR  │  classify failure → fix spec or code → rebuild
+    └────┬─────┘
+         ↓
+      (back to BUILD, max 3 loops)
+```
+
+The human touches the pipeline twice: approving the spec, and approving the deployment. Everything between is autonomous.
+
+## Scope and Limitations
+
+**cliskill is good at:**
+- APIs with documentation (REST, GraphQL, well-documented libraries)
+- Tools with clear input/output contracts
+- Skills that can be expressed as CLI commands with structured output
+
+**cliskill is not designed for:**
+- Real-time streaming APIs (WebSockets, SSE) — CLI is request/response
+- APIs requiring complex OAuth flows with browser redirects — needs human setup
+- Skills that require persistent state across invocations — CLI is stateless by design
+- Replacing human judgment on spec review — the two review gates exist for a reason
+
+## Metrics That Matter
+
+For a cliskill-produced skill, the quality signals are:
+
+- **Holdout pass rate**: Did the skill pass scenarios the builder never saw?
+- **Activation precision**: Does the agent reach for this skill at the right time and avoid it at the wrong time?
+- **Context cost**: How many tokens does the agent spend to activate and use the skill?
+- **Failure honesty**: When the skill can't help, does the agent say so clearly?
+
+## Links
+
+- **Repository**: [github.com/FrancyJGLisboa/cliskill](https://github.com/FrancyJGLisboa/cliskill)
+- **Dependency — /clarity**: [github.com/FrancyJGLisboa/clarity](https://github.com/FrancyJGLisboa/clarity)
+- **Dependency — /agent-skill-creator**: [github.com/FrancyJGLisboa/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)
+
+## License
+
+MIT
