@@ -16,6 +16,7 @@ metadata:
   created: 2026-03-13
   last_reviewed: 2026-03-13
   review_interval_days: 90
+  scope: global
 ---
 
 # cliskill — AI-Agent-Friendly CLI Skill Framework

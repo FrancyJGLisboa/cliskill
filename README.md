@@ -28,8 +28,10 @@ Both skills must be installed:
 ### One-liner (any platform with npm)
 
 ```bash
-npx skills add FrancyJGLisboa/cliskill
+npx skills add FrancyJGLisboa/cliskill -g
 ```
+
+The `-g` flag installs globally (available across all projects). cliskill is a meta-tool that builds other skills — it should always be global, not scoped to a single repo.
 
 ### macOS / Linux
 
