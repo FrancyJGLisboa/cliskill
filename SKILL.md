@@ -145,6 +145,25 @@ cliskill ▸ DEPLOY ▸ installed    {platform-name} ✓
 cliskill ▸ DEPLOY ▸ done         Deployed to {platform list}
 ```
 
+**RESEARCH mode (when applicable):**
+```
+cliskill ▸ RESEARCH ▸ starting    Research mode — continuous optimization
+cliskill ▸ RESEARCH ▸ discover    Running discovery pipeline...
+cliskill ▸ RESEARCH ▸ discover    {N} capabilities, {N} methods found
+cliskill ▸ RESEARCH ▸ negotiate   Asking scenario questions...
+cliskill ▸ RESEARCH ▸ negotiate   Metric proposed: {metric name}
+cliskill ▸ RESEARCH ▸ negotiate   Metric accepted: {metric name}
+cliskill ▸ RESEARCH ▸ bootstrap   Generating eval harness...
+cliskill ▸ RESEARCH ▸ bootstrap   Dry-run: {N} experiments passed
+cliskill ▸ RESEARCH ▸ bootstrap   Metric verified against known cases
+cliskill ▸ RESEARCH ▸ optimize    Experiment {N}: {strategy class} — {hypothesis}
+cliskill ▸ RESEARCH ▸ optimize    Experiment {N}: {KEEP | REVERT | BUG | DESTRUCTIVE} — {metric} → {new metric}
+cliskill ▸ RESEARCH ▸ optimize    Strategy class {name} exhausted ({N} neutral in a row)
+cliskill ▸ RESEARCH ▸ optimize    Convergence stalled — {N} classes exhausted
+cliskill ▸ RESEARCH ▸ review      Presenting results — best: {metric value}, {N} experiments, {M} kept
+cliskill ▸ RESEARCH ▸ done        Research complete — {metric}: {baseline} → {best}
+```
+
 ### Rules
 
 - **Every status line is a single line.** No multi-line updates — these should scroll cleanly in a terminal.

@@ -275,7 +275,7 @@ cliskill/
 │   ├── discovery-protocol.md       # Capability extraction + feasibility
 │   ├── evaluation-router.md        # Failure classification + routing
 │   ├── loop-protocol.md            # State tracking + convergence rules
-│   ├── research-protocol.md       # Continuous optimization loops
+│   ├── research-protocol.md        # Continuous optimization loops
 │   └── examples.md                 # Happy path + fix loop examples
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker + auto-installer

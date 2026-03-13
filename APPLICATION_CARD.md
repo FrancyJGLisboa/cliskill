@@ -16,15 +16,30 @@ A human developer reads API docs once, builds a mental model, and then works fro
 
 ## Solution
 
-cliskill compresses API documentation into CLI tools that agents can wield without understanding the underlying API.
+cliskill compresses API documentation into CLI tools that agents can wield without understanding the underlying API. It also works in reverse — given a repo and reference material, it discovers what analytics are possible and builds them. And for ML pipelines, it runs continuous optimization loops with the same rigor.
+
+Three entry points, one pipeline:
 
 ```
-Raw API docs (50,000+ tokens)
-    → clarity extracts what matters
-Verified spec + holdout scenarios
-    → agent-skill-creator builds the CLI
-SKILL.md (~300 lines) + scripts (agent never reads)
-    → agent activates the skill in ~500 tokens
+1. API → CLI skill (standard)
+   Raw API docs (50,000+ tokens)
+       → clarity extracts what matters
+   Verified spec + holdout scenarios
+       → agent-skill-creator builds the CLI
+   SKILL.md (~300 lines) + scripts (agent never reads)
+       → agent activates the skill in ~500 tokens
+
+2. Repo + knowledge → analytics skill (discover)
+   Repository code + course materials / methodology docs
+       → cross-reference capabilities against methods
+   Ranked feasibility report → user selects
+       → standard pipeline builds and verifies the skill
+
+3. Pipeline + metric → optimized model (research)
+   ML pipeline + domain knowledge
+       → negotiate metric, bootstrap eval harness
+   Autonomous optimization loop (PROPOSE → RUN → CLASSIFY → KEEP/REVERT)
+       → convergence detection, guided review, Pareto front
 ```
 
 The result is a CLI skill where:
@@ -38,7 +53,7 @@ A 50,000-token API reference becomes a 500-token tool activation. The agent spen
 
 ## Why CLI
 
-CLI is the universal interface for agent tooling. Every major agent platform — Claude Code, Copilot, Gemini CLI, Codex, Cursor, Goose — can execute shell commands. No SDK integration, no plugin API, no platform-specific adapter.
+CLI is the universal interface for agent tooling. Every major agent platform — Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline — can execute shell commands. No SDK integration, no plugin API, no platform-specific adapter.
 
 A CLI skill works everywhere because:
 
@@ -111,9 +126,10 @@ Human provides references
     │ DISCOVER? │  ← If repo + knowledge: extract capabilities, cross-reference,
     └────┬──────┘    rank feasible analytics, user selects
          ↓
-    ┌───────────┐
-    │ RESEARCH? │  ← If continuous metric: NEGOTIATE → BOOTSTRAP → OPTIMIZE loop
-    └────┬──────┘    (PROPOSE → RUN → CLASSIFY → KEEP/REVERT until convergence)
+    ┌───────────┐     ┌───────────────────────────────────────────────┐
+    │ RESEARCH? │─yes─│ NEGOTIATE → BOOTSTRAP → OPTIMIZE → REVIEW    │
+    └────┬──────┘     │ (own flow — doesn't enter SPECIFY/BUILD)     │
+         │no          └───────────────────────────────────────────────┘
          ↓
     ┌──────────┐
     │ UPDATE?  │  ← If updating: diff new refs against existing spec
@@ -149,7 +165,7 @@ Human provides references
       (back to BUILD, max 3 loops)
 ```
 
-The human touches the pipeline twice: approving the spec, and approving the deployment. When escalation is needed, cliskill walks the user through each failure interactively — one at a time, with clear options — instead of dumping a diagnostic wall.
+In the standard and discover flows, the human touches the pipeline twice: approving the spec and approving the deployment. In research mode, the human negotiates the metric (NEGOTIATE) and reviews the optimization results (REVIEW). When escalation is needed, cliskill walks the user through each failure interactively — one at a time, with clear options — instead of dumping a diagnostic wall.
 
 ## Relationship to agent-skill-creator
 
