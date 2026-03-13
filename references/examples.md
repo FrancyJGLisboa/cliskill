@@ -548,3 +548,374 @@ cliskill ▸ ESCALATE ▸ done       1 resolved — rebuilding with spec fix
 cliskill updates the spec to require field-level merge, regenerates the brief, and re-enters BUILD.
 
 This is the holdout separation principle in action — the builder (cliskill + agent-skill-creator) never touches the tests. But instead of leaving the user alone with a diagnostic dump, it guides them to a decision.
+
+---
+
+## Example 6: Discovery Mode (Repo + Course Material)
+
+**Input:** John is a vibe coder who found an interesting portfolio analytics repo. He has a quantitative finance course PDF and wants to discover what analytics the repo can support, then turn the best ones into an agent-friendly skill.
+
+```
+/cliskill discover https://github.com/john/portfolio-analytics -- ./course-materials/quantitative-finance.pdf
+```
+
+### Phase D: DISCOVER
+
+```
+cliskill ▸ DISCOVER ▸ starting     Analyzing 1 capability + 1 knowledge source(s)
+cliskill ▸ DISCOVER ▸ classify     github.com/john/portfolio-analytics: capability
+cliskill ▸ DISCOVER ▸ classify     quantitative-finance.pdf: knowledge
+```
+
+**D1 — Capability Extraction:**
+
+```
+cliskill ▸ DISCOVER ▸ capabilities Reading github.com/john/portfolio-analytics...
+cliskill ▸ DISCOVER ▸ capabilities 6 data structures, 14 functions, 2 pipelines found
+```
+
+Writes `.cliskill/discovery/capabilities.md`:
+```markdown
+# Capability Inventory
+
+## Data Structures
+- PortfolioPosition: ticker, shares, cost_basis, date_acquired
+- PriceTimeSeries: ticker, date, open, high, low, close, volume
+- TradeLog: ticker, action, shares, price, timestamp
+- BenchmarkIndex: name, daily_returns series
+- RiskFreeRate: date, rate (from Treasury API)
+- PortfolioSnapshot: date, holdings[], total_value, cash
+
+## Functions
+- fetch_prices(tickers, start, end): daily OHLCV from Finnhub
+- calculate_returns(prices, period): simple and log returns
+- portfolio_value(positions, prices): mark-to-market valuation
+- rebalance(portfolio, target_weights): generate rebalance trades
+- plot_performance(returns, benchmark): matplotlib chart
+- export_report(data, format): PDF/CSV export
+- (8 more utility functions...)
+
+## Data Sources
+- Finnhub API client (prices, fundamentals, news)
+- CSV import/export for portfolio positions
+- SQLite local storage for trade history
+
+## Existing Pipelines
+- Daily valuation: fetch prices → calculate returns → snapshot
+- Performance report: load history → calculate metrics → plot → export PDF
+
+## Library Capabilities
+- pandas, numpy: data manipulation (installed)
+- scipy.stats: statistical distributions (installed)
+- statsmodels: time series analysis (installed)
+- matplotlib: visualization (installed)
+- scikit-learn: ML models (installed but unused in current code)
+```
+
+**D2 — Knowledge Extraction:**
+
+```
+cliskill ▸ DISCOVER ▸ knowledge    Reading quantitative-finance.pdf...
+cliskill ▸ DISCOVER ▸ knowledge    18 methods/techniques extracted
+```
+
+Writes `.cliskill/discovery/knowledge.md` (abbreviated):
+```markdown
+# Knowledge Catalog
+
+## Methods
+
+### Sharpe Ratio
+- Description: Risk-adjusted return measure (excess return / std deviation)
+- Prerequisites: daily returns, risk-free rate
+- Outputs: single score (higher = better risk-adjusted performance)
+- Complexity: simple
+- Importance: core
+- Source: Chapter 3, p.42
+
+### Maximum Drawdown
+- Description: Largest peak-to-trough decline in portfolio value
+- Prerequisites: daily portfolio values
+- Outputs: percentage, start date, end date, recovery date
+- Complexity: simple
+- Importance: core
+- Source: Chapter 3, p.51
+
+### Value at Risk (VaR)
+- Description: Maximum expected loss at a confidence level over a time horizon
+- Prerequisites: returns distribution, confidence level (95%/99%)
+- Outputs: dollar amount or percentage at risk
+- Complexity: moderate (parametric: simple, historical: simple, Monte Carlo: moderate)
+- Importance: core
+- Source: Chapter 5, p.88
+
+### Monte Carlo Simulation
+- Description: Generate thousands of random portfolio paths to estimate outcome distributions
+- Prerequisites: returns distribution parameters, correlation matrix
+- Outputs: simulated paths, probability distributions, confidence intervals
+- Complexity: moderate
+- Importance: important
+- Source: Chapter 7, p.134
+
+### GARCH Volatility Modeling
+- Description: Model time-varying volatility using GARCH(1,1)
+- Prerequisites: returns timeseries (>250 data points)
+- Outputs: conditional volatility forecast, model parameters
+- Complexity: complex
+- Importance: important
+- Source: Chapter 8, p.156
+
+### Efficient Frontier
+- Description: Set of portfolios offering highest return for each risk level
+- Prerequisites: expected returns, covariance matrix, asset list
+- Outputs: frontier curve, optimal weights at each risk level
+- Complexity: moderate (quadratic optimization)
+- Importance: important
+- Source: Chapter 4, p.67
+
+### Sentiment-Driven Alpha
+- Description: Use NLP on financial news to generate trading signals
+- Prerequisites: news text corpus, sentiment model, price data
+- Outputs: sentiment score, signal strength, backtested alpha
+- Complexity: complex
+- Importance: advanced
+- Source: Chapter 12, p.223
+
+(... 11 more methods including Beta, Treynor Ratio, Information Ratio,
+ Sortino Ratio, Conditional VaR, Correlation Analysis, Factor Analysis,
+ Sector Allocation, Dividend Yield Analysis, Rolling Metrics, Benchmark Tracking)
+```
+
+**D3 — Cross-Reference:**
+
+```
+cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
+cliskill ▸ DISCOVER ▸ crossref     14 feasible, 4 blocked
+```
+
+Writes `.cliskill/discovery/cross-reference.md` (abbreviated):
+
+```markdown
+# Cross-Reference Matrix
+
+| Method | Data | Functions | Feasibility | Effort | Notes |
+|--------|------|-----------|-------------|--------|-------|
+| Sharpe Ratio | data_ready | needs_extension | LOW_EFFORT | calculate_returns() exists, need risk-free rate integration |
+| Maximum Drawdown | data_ready | needs_extension | LOW_EFFORT | portfolio_value() exists, need peak-trough logic |
+| Value at Risk (parametric) | data_ready | buildable | MODERATE | scipy.stats available |
+| Value at Risk (Monte Carlo) | data_ready | buildable | MODERATE | numpy random available |
+| Monte Carlo Simulation | data_ready | buildable | MODERATE | numpy available, need simulation loop |
+| GARCH Volatility | data_ready | buildable | MODERATE | statsmodels has GARCH, need >250 days data check |
+| Efficient Frontier | data_ready | buildable | MODERATE | scipy.optimize available |
+| Beta | data_ready | needs_extension | LOW_EFFORT | benchmark data exists |
+| Treynor Ratio | data_ready | needs_extension | LOW_EFFORT | once Beta + returns exist |
+| Sortino Ratio | data_ready | needs_extension | LOW_EFFORT | calculate_returns() exists |
+| Information Ratio | data_ready | needs_extension | LOW_EFFORT | benchmark tracking exists |
+| Correlation Analysis | data_ready | already_implemented | READY | numpy.corrcoef available |
+| Rolling Metrics | data_ready | needs_extension | LOW_EFFORT | pandas rolling window |
+| Benchmark Tracking | data_ready | already_implemented | READY | plot_performance() exists |
+| Sentiment-Driven Alpha | data_blocked | complex_build | BLOCKED | No news text corpus, need NLP model |
+| Factor Analysis (Fama-French) | data_blocked | complex_build | BLOCKED | No factor data source |
+| Conditional VaR | data_ready | buildable | HIGH_EFFORT | Need VaR first + tail distribution modeling |
+| Sector Allocation | data_gap | buildable | HIGH_EFFORT | No sector classification data in current schema |
+```
+
+**D4 — Ranking:**
+
+```
+cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking...
+cliskill ▸ DISCOVER ▸ done         Discovery complete — 6 Tier 1, 5 Tier 2, 3 Tier 3, 4 blocked
+```
+
+### DISCOVERY REVIEW
+
+```
+cliskill — Discovery Report
+
+Capability sources analyzed: 1 (github.com/john/portfolio-analytics)
+Knowledge sources analyzed: 1 (quantitative-finance.pdf)
+
+What this repo can do:
+  Portfolio management with daily price ingestion from Finnhub, position tracking,
+  return calculation, and PDF/CSV reporting. Has pandas, scipy, statsmodels,
+  scikit-learn installed. SQLite for persistence.
+
+What the reference material teaches:
+  18 quantitative finance methods from basic risk metrics to advanced volatility
+  modeling and sentiment analysis. Core focus on risk-adjusted returns, VaR,
+  and portfolio optimization.
+
+Recommended Analytics (Tier 1 — quick wins):
+
+| # | Analytics | Why | Effort | Based on |
+|---|-----------|-----|--------|----------|
+| 1 | Sharpe Ratio | Core metric, Ch.3 | LOW | calculate_returns() + risk-free rate |
+| 2 | Maximum Drawdown | Core metric, Ch.3 | LOW | portfolio_value() + peak-trough |
+| 3 | Sortino Ratio | Core metric, Ch.3 | LOW | calculate_returns() + downside deviation |
+| 4 | Beta | Core metric, Ch.4 | LOW | benchmark data exists |
+| 5 | Correlation Analysis | Important, Ch.6 | READY | numpy.corrcoef already available |
+| 6 | Benchmark Tracking | Important, Ch.4 | READY | plot_performance() exists |
+
+Worth Building (Tier 2):
+
+| # | Analytics | Why | Effort | Based on |
+|---|-----------|-----|--------|----------|
+| 7 | Value at Risk (VaR) | Core method, Ch.5 | MODERATE | scipy.stats for parametric |
+| 8 | Monte Carlo Simulation | Important, Ch.7 | MODERATE | numpy random + simulation loop |
+| 9 | Efficient Frontier | Important, Ch.4 | MODERATE | scipy.optimize |
+| 10 | GARCH Volatility | Important, Ch.8 | MODERATE | statsmodels.tsa |
+| 11 | Rolling Metrics | Supplementary, Ch.3 | LOW | pandas rolling window |
+
+Stretch Goals (Tier 3):
+
+| # | Analytics | Why | Effort | Gap |
+|---|-----------|-----|--------|-----|
+| 12 | Conditional VaR | Supplementary, Ch.5 | HIGH | Needs VaR first + tail modeling |
+| 13 | Treynor Ratio | Supplementary, Ch.3 | LOW | Low priority despite low effort |
+| 14 | Information Ratio | Supplementary, Ch.4 | LOW | Low priority despite low effort |
+
+Blocked (not feasible without changes):
+
+| # | Analytics | Blocker |
+|---|-----------|---------|
+| 15 | Sentiment-Driven Alpha | No news text corpus, need NLP model |
+| 16 | Factor Analysis (Fama-French) | No factor data source (need Kenneth French library) |
+| 17 | Sector Allocation | No sector classification in data schema |
+| 18 | Dividend Yield Analysis | No dividend data in Finnhub client |
+
+Select analytics for the skill:
+1. All Tier 1 + Tier 2 (recommended) — 11 analytics
+2. All Tier 1 only (minimal viable skill) — 6 analytics
+3. Custom selection — pick specific analytics by number
+4. Everything feasible (Tiers 1-3) — 14 analytics
+```
+
+John picks **option 1** (Tier 1 + Tier 2).
+
+```
+cliskill ▸ DISCOVER ▸ selected     11 analytics selected (Tier 1 + Tier 2)
+cliskill ▸ DISCOVER ▸ handoff      Passing discovery context to SPECIFY...
+```
+
+### Phase 1: SPECIFY
+
+cliskill passes the original references plus discovery artifacts to `/clarity`:
+
+```
+cliskill ▸ SPECIFY ▸ starting    Delegating to /clarity with 2 reference(s) + discovery context
+cliskill ▸ SPECIFY ▸ INGEST      Reading portfolio-analytics repo (with capability inventory)...
+cliskill ▸ SPECIFY ▸ INGEST      Reading quantitative-finance.pdf (with knowledge catalog)...
+cliskill ▸ SPECIFY ▸ SPECIFY     Generating spec for 11 selected analytics...
+cliskill ▸ SPECIFY ▸ SPECIFY     22 requirements drafted
+cliskill ▸ SPECIFY ▸ SCENARIO    Creating holdout scenarios...
+cliskill ▸ SPECIFY ▸ SCENARIO    15 scenarios created
+cliskill ▸ SPECIFY ▸ HANDOFF     Generating skill brief with discovery context...
+cliskill ▸ SPECIFY ▸ done        Ready for review — 22 requirements, 15 scenarios
+```
+
+The skill brief includes:
+```markdown
+## Discovery Context
+
+This skill was discovered by cross-referencing the portfolio-analytics repo
+against a quantitative finance course (18 methods). 11 analytics were selected
+(6 quick wins + 5 worth building).
+
+The repo already has: daily price ingestion (Finnhub), return calculation,
+portfolio valuation, benchmark comparison, and PDF reporting. The skill
+should build ON these existing capabilities, not reimplement them.
+
+Selected analytics build on:
+- calculate_returns() → Sharpe, Sortino, rolling metrics
+- portfolio_value() → Maximum Drawdown, VaR
+- BenchmarkIndex → Beta, correlation, benchmark tracking
+- scipy/statsmodels → GARCH, efficient frontier, Monte Carlo
+```
+
+**Review Gate 1:** John reviews the spec. 22 requirements, 15 scenarios. Approves.
+
+### Phase 2: BUILD
+
+```
+cliskill ▸ BUILD ▸ starting      Delegating to /agent-skill-creator
+cliskill ▸ BUILD ▸ architecture  Designing skill structure...
+cliskill ▸ BUILD ▸ detection     Found: claude, cursor
+cliskill ▸ BUILD ▸ implement     Building portfolio-analytics-skill...
+cliskill ▸ BUILD ▸ validate      Running validation + security scan...
+cliskill ▸ BUILD ▸ done          portfolio-analytics-skill built (14 files)
+```
+
+### Phase 3: VERIFY
+
+```
+cliskill ▸ VERIFY ▸ starting     Running 15 holdout scenarios...
+cliskill ▸ VERIFY ▸ SC-001       ✓ Sharpe ratio calculation
+cliskill ▸ VERIFY ▸ SC-002       ✓ Maximum drawdown with dates
+cliskill ▸ VERIFY ▸ SC-003       ✓ Sortino ratio (downside only)
+cliskill ▸ VERIFY ▸ SC-004       ✓ Beta against S&P 500
+cliskill ▸ VERIFY ▸ SC-005       ✓ Correlation matrix output
+cliskill ▸ VERIFY ▸ SC-006       ✓ Benchmark tracking comparison
+cliskill ▸ VERIFY ▸ SC-007       ✗ VaR at 99% confidence — wrong tail calculation
+cliskill ▸ VERIFY ▸ SC-008       ✓ Monte Carlo 10,000 paths
+cliskill ▸ VERIFY ▸ SC-009       ✓ Efficient frontier 5 assets
+cliskill ▸ VERIFY ▸ SC-010       ✓ GARCH volatility forecast
+cliskill ▸ VERIFY ▸ SC-011       ✓ Rolling 30-day Sharpe
+cliskill ▸ VERIFY ▸ SC-012       ✓ Empty portfolio error handling
+cliskill ▸ VERIFY ▸ SC-013       ✓ Single-asset portfolio edge case
+cliskill ▸ VERIFY ▸ SC-014       ✗ Insufficient data for GARCH — no graceful error
+cliskill ▸ VERIFY ▸ SC-015       ✓ PDF report with all metrics
+cliskill ▸ VERIFY ▸ done         13/15 passed
+```
+
+### Repair Loop — Iteration 1
+
+```
+cliskill ▸ REPAIR ▸ loop 1       2 failure(s) to fix
+cliskill ▸ REPAIR ▸ classify     SC-007: Implementation Gap
+cliskill ▸ REPAIR ▸ classify     SC-014: Implementation Gap
+cliskill ▸ REPAIR ▸ fix-impl     Generating rebuild context for 2 failure(s)...
+cliskill ▸ REPAIR ▸ rebuilding   Back to BUILD (loop 1 of 3)
+```
+
+### Phase 2 (rebuild) → Phase 3 (re-verify) → all pass
+
+```
+cliskill ▸ VERIFY ▸ starting     Running 15 holdout scenarios...
+cliskill ▸ VERIFY ▸ SC-007       ✓ VaR at 99% confidence (was ✗)
+cliskill ▸ VERIFY ▸ SC-014       ✓ Insufficient data for GARCH (was ✗)
+cliskill ▸ VERIFY ▸ done         15/15 passed
+```
+
+### Phase 4: DEPLOY
+
+```
+cliskill ▸ DEPLOY ▸ starting     Installing to 2 platform(s)...
+cliskill ▸ DEPLOY ▸ installed    claude ✓
+cliskill ▸ DEPLOY ▸ installed    cursor ✓
+cliskill ▸ DEPLOY ▸ done         Deployed to claude, cursor
+```
+
+```
+cliskill — Complete (discovered)
+
+✓ Discovered: 18 methods analyzed, 14 feasible, 11 selected
+✓ Specified: 22 requirements, 15 holdout scenarios
+✓ Built: portfolio-analytics-skill (14 files)
+✓ Verified: 15/15 scenarios passed (1 repair loop)
+✓ Deployed to: claude, cursor
+```
+
+**Total loops: 1**
+
+Now John's agents can run commands like:
+```
+portfolio-analytics sharpe --ticker AAPL,MSFT,GOOG --period 1y
+portfolio-analytics var --confidence 99 --horizon 10d
+portfolio-analytics efficient-frontier --assets AAPL,MSFT,GOOG,BND,GLD
+portfolio-analytics report --all --format pdf
+```
+
+The agents know from the SKILL.md:
+- **When to use it:** user asks about portfolio risk, returns, or optimization
+- **When not to:** single-stock technical analysis, real-time trading signals, tax calculations
+- **How to fail:** "Insufficient price history for GARCH — need 250+ trading days, have {N}"

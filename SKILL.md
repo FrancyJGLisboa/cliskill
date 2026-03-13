@@ -9,7 +9,8 @@ description: >-
   /agent-skill-creator for implementation and deployment.
   Triggers on: cliskill, build cli skill, agent-friendly cli, api to cli skill,
   end-to-end skill pipeline, create and verify skill, update existing skill,
-  api changed update skill.
+  api changed update skill, discover what analytics are possible, turn repo
+  into agent skill, cross-reference repo with course material.
 license: MIT
 metadata:
   author: Francy Lisboa Charuto
@@ -34,6 +35,7 @@ The human provides references and reviews twice. Everything else is autonomous.
 /cliskill <reference-1> [<reference-2> ...]
 /cliskill resume
 /cliskill update <existing-skill-path> <new-reference-1> [<new-reference-2> ...]
+/cliskill discover <capability-ref-1> [<capability-ref-2> ...] -- <knowledge-ref-1> [<knowledge-ref-2> ...]
 ```
 
 References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions — anything `/clarity` can ingest.
@@ -44,7 +46,11 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill ./specs/finnhub-api-reference.pdf
 /cliskill resume
 /cliskill update ./weather-api-skill https://api.example.com/docs/v2
+/cliskill discover https://github.com/john/portfolio-repo -- ./course-materials/quantitative-finance.pdf
+/cliskill discover ./my-data-pipeline -- ./analytics-textbook.pdf "focus on risk analytics"
 ```
+
+The `--` separator in discover mode separates capability sources (repos, code, data) from knowledge sources (courses, textbooks, methodology docs). If omitted, the agent classifies each reference automatically.
 
 ## Core Principles
 
@@ -70,6 +76,20 @@ cliskill ▸ {PHASE} ▸ {sub-phase}  {detail}
 ### Required Status Lines
 
 Emit these at the indicated points — they are not optional:
+
+**DISCOVER mode (when applicable):**
+```
+cliskill ▸ DISCOVER ▸ starting     Analyzing {N} capability + {N} knowledge source(s)
+cliskill ▸ DISCOVER ▸ classify     {reference}: {capability | knowledge | both}
+cliskill ▸ DISCOVER ▸ capabilities Reading {source name}...
+cliskill ▸ DISCOVER ▸ capabilities {N} data structures, {N} functions, {N} pipelines found
+cliskill ▸ DISCOVER ▸ knowledge    Reading {source name}...
+cliskill ▸ DISCOVER ▸ knowledge    {N} methods/techniques extracted
+cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
+cliskill ▸ DISCOVER ▸ crossref     {N} feasible, {N} blocked
+cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking...
+cliskill ▸ DISCOVER ▸ done         Discovery complete — {N} Tier 1, {N} Tier 2, {N} Tier 3, {N} blocked
+```
 
 **SPECIFY phase:**
 ```
@@ -133,6 +153,7 @@ Load these on demand when entering the relevant phase:
 
 | File | Load when |
 |------|-----------|
+| `references/discovery-protocol.md` | Entering DISCOVER mode |
 | `references/evaluation-router.md` | Entering VERIFY phase or REPAIR LOOP |
 | `references/loop-protocol.md` | Entering REPAIR LOOP or processing `/cliskill resume` |
 | `references/examples.md` | When needing pattern reference for any phase |
@@ -173,7 +194,10 @@ This model means cliskill works best with agents that have large context windows
 On every invocation, check for existing state:
 
 ```
-if command is "/cliskill update <skill-path> <refs>":
+if command is "/cliskill discover <refs> [-- <knowledge-refs>]":
+    → enter DISCOVER mode (see Phase D: DISCOVER below)
+
+else if command is "/cliskill update <skill-path> <refs>":
     → enter UPDATE mode (see Phase 0: UPDATE below)
 
 else if .cliskill/state.md exists AND command is "/cliskill resume":
@@ -185,6 +209,121 @@ else if .cliskill/state.md exists AND command is "/cliskill <refs>":
 else:
     start Phase 1: SPECIFY
 ```
+
+---
+
+## Phase D: DISCOVER (conditional)
+
+**Entry:** `/cliskill discover <capability-refs> [-- <knowledge-refs>]`
+
+**Load:** `references/discovery-protocol.md`
+
+Discovery mode handles the case where the user doesn't know exactly what the skill should do — they have sources of capability (a repo, a library, data) and sources of knowledge (course materials, textbooks) and want to find what's possible at the intersection.
+
+### Instructions
+
+1. **Classify references.** If the user used `--` separator, references before it are capability sources and after are knowledge sources. If no separator, classify each reference:
+   - Repos, code files, data schemas, APIs → **capability source**
+   - PDFs, course materials, textbooks, methodology docs → **knowledge source**
+   - Mixed (e.g., repo with tutorial notebooks) → **both**
+
+2. **Phase D1 — Capability Extraction.** Analyze each capability source. For repos, use reverse-engineering to extract data structures, functions, data sources, existing pipelines, and library capabilities. Write to `.cliskill/discovery/capabilities.md`.
+
+```
+cliskill ▸ DISCOVER ▸ capabilities Reading {source name}...
+cliskill ▸ DISCOVER ▸ capabilities {N} data structures, {N} functions, {N} pipelines found
+```
+
+3. **Phase D2 — Knowledge Extraction.** Analyze each knowledge source. Extract methods/techniques with their prerequisites, outputs, complexity, and importance. Write to `.cliskill/discovery/knowledge.md`.
+
+```
+cliskill ▸ DISCOVER ▸ knowledge    Reading {source name}...
+cliskill ▸ DISCOVER ▸ knowledge    {N} methods/techniques extracted
+```
+
+4. **Phase D3 — Cross-Reference.** Match capabilities against knowledge methods. For each method, assess data readiness and function readiness. Score feasibility (READY, LOW_EFFORT, MODERATE_EFFORT, HIGH_EFFORT, BLOCKED). Write to `.cliskill/discovery/cross-reference.md`.
+
+```
+cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
+cliskill ▸ DISCOVER ▸ crossref     {N} feasible, {N} blocked
+```
+
+5. **Phase D4 — Ranking.** Rank feasible methods by importance × feasibility. Group into tiers (Tier 1: quick wins, Tier 2: worth building, Tier 3: stretch goals, Blocked). Write to `.cliskill/discovery/ranked-analytics.md`.
+
+```
+cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking...
+cliskill ▸ DISCOVER ▸ done         Discovery complete — {N} Tier 1, {N} Tier 2, {N} Tier 3, {N} blocked
+```
+
+6. **Write state:**
+```
+.cliskill/state.md:
+  phase: DISCOVER
+  status: pending_review
+  mode: discover
+  capability_sources: [{list}]
+  knowledge_sources: [{list}]
+```
+
+### DISCOVERY REVIEW
+
+Present the discovery report to the user (see `references/discovery-protocol.md` for full format):
+
+```
+## cliskill — Discovery Report
+
+Capability sources analyzed: {N} ({list})
+Knowledge sources analyzed: {N} ({list})
+
+What this repo can do: {summary}
+What the reference material teaches: {summary}
+
+Recommended Analytics (Tier 1 — quick wins):
+  1. {name} — {why} — {effort}
+  2. ...
+
+Worth Building (Tier 2):
+  3. {name} — {why} — {effort}
+  ...
+
+Stretch Goals (Tier 3):
+  5. {name} — {why} — {effort}
+  ...
+
+Blocked:
+  7. {name} — {blocker}
+
+Select analytics for the skill:
+1. All Tier 1 + Tier 2 (recommended)
+2. All Tier 1 only (minimal viable skill)
+3. Custom selection — pick specific analytics by number
+4. Everything feasible (Tiers 1-3)
+```
+
+Wait for user response. Record their selection in `.cliskill/discovery/ranked-analytics.md`.
+
+### Transition to SPECIFY
+
+After the user selects analytics, proceed to Phase 1: SPECIFY with enriched context:
+
+1. Pass the original references (repo, PDFs) to `/clarity` as usual.
+2. Additionally pass the discovery artifacts as structured context:
+   - `.cliskill/discovery/capabilities.md` — so clarity knows what the repo already has
+   - `.cliskill/discovery/knowledge.md` — so clarity has precise method definitions
+   - `.cliskill/discovery/ranked-analytics.md` — so clarity knows what to spec (the selected analytics only)
+3. Clarity generates the spec scoped to the selected analytics, with requirements that reference existing repo capabilities where possible.
+4. The skill brief includes a `## Discovery Context` section summarizing which analytics were selected, what repo capabilities each builds on, and what knowledge source defines the method.
+
+Update state:
+```
+.cliskill/state.md:
+  phase: SPECIFY
+  status: in_progress
+  mode: discover
+  selected_analytics: [{list of selected names}]
+```
+
+From here, the pipeline follows the standard flow: SPECIFY → Review Gate 1 → BUILD → VERIFY → DEPLOY.
 
 ---
 
@@ -601,7 +740,12 @@ Artifacts:
 
 ```
 .cliskill/
-├── state.md              # Current phase, loop count, status
+├── state.md              # Current phase, loop count, status, mode
+├── discovery/            # Only present in discover mode
+│   ├── capabilities.md   # Phase D1: repo data structures, functions, pipelines
+│   ├── knowledge.md      # Phase D2: methods/techniques from knowledge sources
+│   ├── cross-reference.md # Phase D3: feasibility matrix
+│   └── ranked-analytics.md # Phase D4: ranked list + user selection
 ├── loop-1/
 │   ├── eval-report.md    # Evaluation results for this iteration
 │   ├── changes.md        # What was fixed (classifications + actions)

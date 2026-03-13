@@ -114,6 +114,23 @@ When the API changes — new endpoints, breaking changes, deprecated features �
 
 Update mode diffs the new references against the existing spec, shows you what changed, and only re-specs the delta. Existing passing scenarios are preserved and re-run to catch regressions.
 
+### Discover what's possible (repo + knowledge)
+
+When you have a repo and want to find out what it can do — cross-referenced against course materials, textbooks, or methodology docs:
+
+```
+/cliskill discover <capability-refs> [-- <knowledge-refs>]
+```
+
+**Examples:**
+
+```
+/cliskill discover https://github.com/john/portfolio-repo -- ./quant-finance-course.pdf
+/cliskill discover ./my-data-pipeline -- ./analytics-textbook.pdf "focus on risk analytics"
+```
+
+Discovery mode analyzes the repo's data structures, functions, and libraries, extracts methods from the knowledge material, cross-references them to find what's feasible, and ranks by importance × effort. You pick which analytics to include, then the standard pipeline builds and verifies the skill.
+
 ### Resume an interrupted pipeline
 
 ```
@@ -160,6 +177,16 @@ When cliskill needs your input (scenario gaps, convergence failures, loop exhaus
 - Gives its best-guess classification with reasoning
 - Offers clear options: agree, reclassify, fix the test, see the code, or skip
 - Summarizes the plan before executing
+
+### Discovery Mode
+
+When you don't know what the skill should do — you have a repo and reference material (course PDFs, textbooks) — discovery mode figures it out:
+
+1. **Extracts capabilities** from the repo (data, functions, libraries, pipelines)
+2. **Extracts methods** from the knowledge material (techniques, prerequisites, importance)
+3. **Cross-references** to find what's feasible and what's blocked
+4. **Ranks** by importance × effort into tiers (quick wins, worth building, stretch goals)
+5. **You select** which analytics to include, then the pipeline builds and verifies
 
 ### Update Mode
 

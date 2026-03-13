@@ -103,7 +103,11 @@ cliskill is a conductor, not an orchestra. It orchestrates two independent skill
 Neither skill has an evaluation-fix-rebuild loop. cliskill adds that loop — the piece that turns "generate once and hope" into "generate, verify, fix, verify again."
 
 ```
-Human provides API references (or /cliskill update with new refs)
+Human provides references
+         ↓
+    ┌───────────┐
+    │ DISCOVER? │  ← If repo + knowledge: extract capabilities, cross-reference,
+    └────┬──────┘    rank feasible analytics, user selects
          ↓
     ┌──────────┐
     │ UPDATE?  │  ← If updating: diff new refs against existing spec
@@ -161,6 +165,7 @@ The evolution is concrete:
 | **Classifies failures** | No | Yes — spec gap vs impl gap vs test gap |
 | **Auto-fixes and rebuilds** | No | Yes — up to 3 loops |
 | **Guided escalation** | No — always ships | Yes — walks user through each failure interactively |
+| **Discovery mode** | No — user must know what to build | Yes — cross-references repo capabilities against knowledge sources, ranks feasibility |
 | **Update mode** | No — rebuild from scratch | Yes — diffs new refs against existing spec, preserves passing behavior |
 | **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
 
@@ -174,6 +179,7 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 
 **cliskill is good at:**
 - APIs with documentation (REST, GraphQL, well-documented libraries)
+- Repos with code + reference material (discover mode: cross-reference capabilities against methods)
 - Tools with clear input/output contracts
 - Skills that can be expressed as CLI commands with structured output
 
