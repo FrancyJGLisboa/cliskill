@@ -20,26 +20,6 @@ The human provides references and reviews twice. Everything between is autonomou
 
 ## Install
 
-### Recommended: `npx` (any OS)
-
-```bash
-npx cliskill
-```
-
-That's it. The installer:
-
-1. Checks prerequisites (git, Python 3.10+) with OS-specific install guidance if missing
-2. Detects your AI coding tool (Claude Code, Cursor, Copilot, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline)
-3. Installs cliskill **and both dependencies** (`/clarity`, `/agent-skill-creator`) automatically
-4. On Windows, falls back to directory junctions or copy if symlinks need admin
-
-```bash
-npx cliskill --dry-run     # Preview without changes
-npx cliskill --uninstall   # Remove everything
-```
-
-### Alternative: git clone
-
 **macOS / Linux:**
 
 ```bash
@@ -56,6 +36,13 @@ cd cliskill
 .\scripts\install.ps1 -WithDeps
 ```
 
+The installer:
+
+1. Checks prerequisites (git, Python 3.10+) with OS-specific install guidance if missing
+2. Detects your AI coding tool (Claude Code, Cursor, Copilot, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline)
+3. Installs cliskill **and both dependencies** (`/clarity`, `/agent-skill-creator`) automatically
+4. On Windows, falls back to directory junctions or copy if symlinks need admin
+
 Other options:
 
 ```bash
@@ -65,7 +52,7 @@ Other options:
 
 ### Dependencies
 
-cliskill depends on two skills — both are **auto-installed** by the `npx` installer and by `--with-deps`:
+cliskill depends on two skills — both are **auto-installed** by `--with-deps`:
 
 - **[/clarity](https://github.com/FrancyJGLisboa/clarity)** — Specification engine
 - **[/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)** — Implementation engine
@@ -268,9 +255,6 @@ If no platform is detected, defaults to Claude Code. The installer installs to *
 ```
 cliskill/
 ├── SKILL.md                        # The pipeline specification
-├── package.json                    # npm package for npx installer
-├── bin/
-│   └── install.mjs                 # Cross-platform Node.js installer
 ├── references/
 │   ├── discovery-protocol.md       # Capability extraction + feasibility
 │   ├── evaluation-router.md        # Failure classification + routing
