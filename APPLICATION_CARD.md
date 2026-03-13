@@ -110,6 +110,34 @@ Human provides API references
 
 The human touches the pipeline twice: approving the spec, and approving the deployment. Everything between is autonomous.
 
+## Relationship to agent-skill-creator
+
+cliskill is the successor to `/agent-skill-creator`, not a wrapper around it.
+
+`/agent-skill-creator` is an open-loop generator. It takes a spec (or raw references), builds a skill, runs validation and a security scan, and ships it. If the generated skill misunderstands an API's pagination, silently drops error cases, or implements the wrong business logic — nobody finds out until a human or an agent hits the bug in production. There is no verification step. Build and hope.
+
+This is the same gap that separates a code generator from a compiler. A code generator produces output. A compiler produces output *and tells you if it's wrong*. cliskill adds the "tells you if it's wrong" part — and then fixes it.
+
+The evolution is concrete:
+
+| Capability | agent-skill-creator | cliskill |
+|---|---|---|
+| Reads API docs | Yes (Phase 1) | Yes (via /clarity) |
+| Generates skill code | Yes (Phase 5) | Yes (via /agent-skill-creator) |
+| Validates structure | Yes (SKILL.md schema) | Yes (inherited) |
+| Security scans | Yes (pattern matching) | Yes (inherited) |
+| **Verifies behavior** | No | Yes — holdout scenarios |
+| **Classifies failures** | No | Yes — spec gap vs impl gap vs test gap |
+| **Auto-fixes and rebuilds** | No | Yes — up to 3 loops |
+| **Knows when to give up** | No — always ships | Yes — escalates with diagnostics |
+| **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
+
+The critical difference is the last row. agent-skill-creator *can* skip the spec and build directly from raw references. This is fast but fragile — the skill reflects whatever the LLM inferred from the docs, with no structured verification. cliskill forces the spec-first path: clarity extracts, structures, and creates holdout tests *before* the builder ever sees the brief. The builder implements against a verified spec, not against raw inference.
+
+agent-skill-creator remains excellent at what it does — it's the best skill builder available. But it's a build tool, not a factory. cliskill turns it into a factory by adding the quality loop that build tools lack.
+
+Both projects stay independent. agent-skill-creator continues to evolve as the implementation engine. cliskill orchestrates it within a closed-loop pipeline where "it compiled" is no longer sufficient — "it works correctly against scenarios the builder never saw" is the bar.
+
 ## Scope and Limitations
 
 **cliskill is good at:**
