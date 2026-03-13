@@ -1,6 +1,6 @@
 # cliskill — AI-Agent-Friendly CLI Skill Framework
 
-> Point at API references. Get a verified CLI tool that agents know how to wield.
+> Your agents don't need to read the docs. They need a tool that already did.
 
 ![cliskill — Scaling AI Agents via API Compression](cliskill.png)
 

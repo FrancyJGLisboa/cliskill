@@ -1,5 +1,7 @@
 # Application Card: cliskill
 
+> Your agents don't need to read the docs. They need a tool that already did.
+
 ![cliskill — Scaling AI Agents via API Compression](cliskill.png)
 
 ## Problem
