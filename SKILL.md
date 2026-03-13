@@ -83,11 +83,14 @@ cliskill ▸ DISCOVER ▸ starting     Analyzing {N} capability + {N} knowledge 
 cliskill ▸ DISCOVER ▸ classify     {reference}: {capability | knowledge | both}
 cliskill ▸ DISCOVER ▸ capabilities Reading {source name}...
 cliskill ▸ DISCOVER ▸ capabilities {N} data structures, {N} functions, {N} pipelines found
+cliskill ▸ DISCOVER ▸ capabilities {N} unverified (excluded from ranking)
 cliskill ▸ DISCOVER ▸ knowledge    Reading {source name}...
-cliskill ▸ DISCOVER ▸ knowledge    {N} methods/techniques extracted
+cliskill ▸ DISCOVER ▸ knowledge    {N} methods extracted ({M} high-confidence, {K} low-confidence)
 cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
 cliskill ▸ DISCOVER ▸ crossref     {N} feasible, {N} blocked
-cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking...
+cliskill ▸ DISCOVER ▸ probes       Running feasibility probes on {N} candidates...
+cliskill ▸ DISCOVER ▸ probes       {N} passed, {M} downgraded, {K} blocked
+cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking (post-probe)...
 cliskill ▸ DISCOVER ▸ done         Discovery complete — {N} Tier 1, {N} Tier 2, {N} Tier 3, {N} blocked
 ```
 
@@ -227,28 +230,30 @@ Discovery mode handles the case where the user doesn't know exactly what the ski
    - PDFs, course materials, textbooks, methodology docs → **knowledge source**
    - Mixed (e.g., repo with tutorial notebooks) → **both**
 
-2. **Phase D1 — Capability Extraction.** Analyze each capability source. For repos, use reverse-engineering to extract data structures, functions, data sources, existing pipelines, and library capabilities. Write to `.cliskill/discovery/capabilities.md`.
+2. **Phase D1 — Capability Extraction.** Analyze each capability source. For repos, use reverse-engineering to extract data structures, functions, data sources, existing pipelines, and library capabilities. **Guardrail G1.1: every claim must cite file:line as evidence.** Unverified capabilities go in a separate section (G1.3). Write to `.cliskill/discovery/capabilities.md`.
 
 ```
 cliskill ▸ DISCOVER ▸ capabilities Reading {source name}...
 cliskill ▸ DISCOVER ▸ capabilities {N} data structures, {N} functions, {N} pipelines found
 ```
 
-3. **Phase D2 — Knowledge Extraction.** Analyze each knowledge source. Extract methods/techniques with their prerequisites, outputs, complexity, and importance. Write to `.cliskill/discovery/knowledge.md`.
+3. **Phase D2 — Knowledge Extraction.** Analyze each knowledge source. Extract methods/techniques with their prerequisites, outputs, complexity, and importance. **Guardrail G1.5: only include methods the source explicitly teaches (with formulas/examples), not methods the agent infers.** Write to `.cliskill/discovery/knowledge.md`.
 
 ```
 cliskill ▸ DISCOVER ▸ knowledge    Reading {source name}...
 cliskill ▸ DISCOVER ▸ knowledge    {N} methods/techniques extracted
 ```
 
-4. **Phase D3 — Cross-Reference.** Match capabilities against knowledge methods. For each method, assess data readiness and function readiness. Score feasibility (READY, LOW_EFFORT, MODERATE_EFFORT, HIGH_EFFORT, BLOCKED). Write to `.cliskill/discovery/cross-reference.md`.
+4. **Phase D3 — Cross-Reference + Probes.** Match capabilities against knowledge methods. For each method, assess data readiness and function readiness. **Then run feasibility probes on every READY/LOW_EFFORT candidate (G1.2).** Probes verify claims by reading actual code — failed probes downgrade the classification. Validate full prerequisite chains (G1.4). Write to `.cliskill/discovery/cross-reference.md` and `.cliskill/discovery/probes.md`.
 
 ```
 cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
 cliskill ▸ DISCOVER ▸ crossref     {N} feasible, {N} blocked
+cliskill ▸ DISCOVER ▸ probes       Running feasibility probes on {N} candidates...
+cliskill ▸ DISCOVER ▸ probes       {N} passed, {M} downgraded, {K} blocked
 ```
 
-5. **Phase D4 — Ranking.** Rank feasible methods by importance × feasibility. Group into tiers (Tier 1: quick wins, Tier 2: worth building, Tier 3: stretch goals, Blocked). Write to `.cliskill/discovery/ranked-analytics.md`.
+5. **Phase D4 — Ranking.** Rank feasible methods (post-probe) by importance × feasibility. Group into tiers (Tier 1: quick wins, Tier 2: worth building, Tier 3: stretch goals, Blocked). Write to `.cliskill/discovery/ranked-analytics.md`.
 
 ```
 cliskill ▸ DISCOVER ▸ ranking      Scoring and ranking...
@@ -742,9 +747,10 @@ Artifacts:
 .cliskill/
 ├── state.md              # Current phase, loop count, status, mode
 ├── discovery/            # Only present in discover mode
-│   ├── capabilities.md   # Phase D1: repo data structures, functions, pipelines
-│   ├── knowledge.md      # Phase D2: methods/techniques from knowledge sources
-│   ├── cross-reference.md # Phase D3: feasibility matrix
+│   ├── capabilities.md   # Phase D1: repo inventory (with file:line evidence)
+│   ├── knowledge.md      # Phase D2: methods from knowledge sources
+│   ├── cross-reference.md # Phase D3: feasibility matrix (post-probe)
+│   ├── probes.md         # Feasibility probe results per method
 │   └── ranked-analytics.md # Phase D4: ranked list + user selection
 ├── loop-1/
 │   ├── eval-report.md    # Evaluation results for this iteration

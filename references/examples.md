@@ -572,51 +572,78 @@ cliskill ▸ DISCOVER ▸ classify     quantitative-finance.pdf: knowledge
 ```
 cliskill ▸ DISCOVER ▸ capabilities Reading github.com/john/portfolio-analytics...
 cliskill ▸ DISCOVER ▸ capabilities 6 data structures, 14 functions, 2 pipelines found
+cliskill ▸ DISCOVER ▸ capabilities 1 unverified (excluded from ranking)
 ```
 
-Writes `.cliskill/discovery/capabilities.md`:
+Writes `.cliskill/discovery/capabilities.md` (with evidence citations per G1.1):
 ```markdown
 # Capability Inventory
 
 ## Data Structures
 - PortfolioPosition: ticker, shares, cost_basis, date_acquired
+  **Evidence:** models.py:8 — dataclass with 4 fields confirmed
 - PriceTimeSeries: ticker, date, open, high, low, close, volume
+  **Evidence:** models.py:15 — dataclass, daily OHLCV, used by fetch_prices()
 - TradeLog: ticker, action, shares, price, timestamp
+  **Evidence:** models.py:24 — dataclass, written by rebalance()
 - BenchmarkIndex: name, daily_returns series
+  **Evidence:** models.py:31 — dataclass, loaded from CSV in data/benchmarks/
 - RiskFreeRate: date, rate (from Treasury API)
+  **Evidence:** models.py:37 — dataclass, fetched in connectors.py:89
 - PortfolioSnapshot: date, holdings[], total_value, cash
+  **Evidence:** models.py:42 — dataclass, produced by daily valuation pipeline
 
 ## Functions
 - fetch_prices(tickers, start, end): daily OHLCV from Finnhub
+  **Evidence:** connectors.py:12 — calls Finnhub /stock/candle endpoint
 - calculate_returns(prices, period): simple and log returns
+  **Evidence:** analytics.py:42 — computes pct_change(), supports 'simple' and 'log'
 - portfolio_value(positions, prices): mark-to-market valuation
+  **Evidence:** analytics.py:78 — sums position × price for each holding
 - rebalance(portfolio, target_weights): generate rebalance trades
+  **Evidence:** analytics.py:112 — generates TradeLog entries for weight diff
 - plot_performance(returns, benchmark): matplotlib chart
+  **Evidence:** reporting.py:15 — matplotlib line chart, saves to PNG
 - export_report(data, format): PDF/CSV export
-- (8 more utility functions...)
+  **Evidence:** reporting.py:67 — supports 'pdf' (via matplotlib) and 'csv'
+- (8 more utility functions with evidence...)
 
 ## Data Sources
 - Finnhub API client (prices, fundamentals, news)
+  **Evidence:** connectors.py:5 — finnhub-python SDK, API key from env
 - CSV import/export for portfolio positions
+  **Evidence:** io_utils.py:8 — pandas read_csv/to_csv
 - SQLite local storage for trade history
+  **Evidence:** db.py:3 — sqlite3, trades table with schema at db.py:12
 
 ## Existing Pipelines
 - Daily valuation: fetch prices → calculate returns → snapshot
+  **Evidence:** pipelines.py:10 → connectors.py:12 → analytics.py:42 → analytics.py:78
 - Performance report: load history → calculate metrics → plot → export PDF
+  **Evidence:** pipelines.py:45 → db.py:28 → analytics.py:42 → reporting.py:15 → reporting.py:67
 
 ## Library Capabilities
-- pandas, numpy: data manipulation (installed)
-- scipy.stats: statistical distributions (installed)
-- statsmodels: time series analysis (installed)
-- matplotlib: visualization (installed)
-- scikit-learn: ML models (installed but unused in current code)
+- pandas 2.1.0, numpy 1.25.0: data manipulation
+  **Evidence:** requirements.txt:1-2
+- scipy 1.11.0: statistical distributions
+  **Evidence:** requirements.txt:3
+- statsmodels 0.14.0: time series analysis
+  **Evidence:** requirements.txt:4
+- matplotlib 3.8.0: visualization
+  **Evidence:** requirements.txt:5
+- scikit-learn 1.3.0: ML models
+  **Evidence:** requirements.txt:6 — imported in analytics.py:4 but no model code found
+
+## Unverified (excluded from ranking)
+- "Real-time portfolio tracking" — mentioned in README.md:23 but no WebSocket
+  or streaming code found in source. Excluded per G1.3.
 ```
 
 **D2 — Knowledge Extraction:**
 
 ```
 cliskill ▸ DISCOVER ▸ knowledge    Reading quantitative-finance.pdf...
-cliskill ▸ DISCOVER ▸ knowledge    18 methods/techniques extracted
+cliskill ▸ DISCOVER ▸ knowledge    18 methods extracted (16 high-confidence, 2 low-confidence)
 ```
 
 Writes `.cliskill/discovery/knowledge.md` (abbreviated):
@@ -686,38 +713,50 @@ Writes `.cliskill/discovery/knowledge.md` (abbreviated):
  Sector Allocation, Dividend Yield Analysis, Rolling Metrics, Benchmark Tracking)
 ```
 
-**D3 — Cross-Reference:**
+**D3 — Cross-Reference + Probes:**
 
 ```
 cliskill ▸ DISCOVER ▸ crossref     Matching capabilities against methods...
 cliskill ▸ DISCOVER ▸ crossref     14 feasible, 4 blocked
+cliskill ▸ DISCOVER ▸ probes       Running feasibility probes on 8 candidates...
+cliskill ▸ DISCOVER ▸ probes       Sharpe Ratio: PASS — calculate_returns() confirmed at analytics.py:42
+cliskill ▸ DISCOVER ▸ probes       Maximum Drawdown: PASS — portfolio_value() confirmed at analytics.py:78
+cliskill ▸ DISCOVER ▸ probes       Correlation Analysis: PASS — numpy.corrcoef available, confirmed import
+cliskill ▸ DISCOVER ▸ probes       Benchmark Tracking: FAIL — plot_performance() only plots, doesn't compute tracking error
+cliskill ▸ DISCOVER ▸ probes       Sortino Ratio: PASS — calculate_returns() handles downside via period param
+cliskill ▸ DISCOVER ▸ probes       Beta: PASS — BenchmarkIndex.daily_returns confirmed at models.py:31
+cliskill ▸ DISCOVER ▸ probes       Rolling Metrics: PASS — pandas.DataFrame.rolling confirmed in analytics.py:5
+cliskill ▸ DISCOVER ▸ probes       Information Ratio: PASS — benchmark data exists
+cliskill ▸ DISCOVER ▸ probes       7 passed, 1 downgraded, 0 blocked
 ```
 
-Writes `.cliskill/discovery/cross-reference.md` (abbreviated):
+Note: Benchmark Tracking was classified as READY (`already_implemented`) but the probe revealed `plot_performance()` only plots — it doesn't compute tracking error or tracking difference. Downgraded to LOW_EFFORT.
+
+Writes `.cliskill/discovery/cross-reference.md` (post-probe, abbreviated):
 
 ```markdown
 # Cross-Reference Matrix
 
-| Method | Data | Functions | Feasibility | Effort | Notes |
-|--------|------|-----------|-------------|--------|-------|
-| Sharpe Ratio | data_ready | needs_extension | LOW_EFFORT | calculate_returns() exists, need risk-free rate integration |
-| Maximum Drawdown | data_ready | needs_extension | LOW_EFFORT | portfolio_value() exists, need peak-trough logic |
-| Value at Risk (parametric) | data_ready | buildable | MODERATE | scipy.stats available |
-| Value at Risk (Monte Carlo) | data_ready | buildable | MODERATE | numpy random available |
-| Monte Carlo Simulation | data_ready | buildable | MODERATE | numpy available, need simulation loop |
-| GARCH Volatility | data_ready | buildable | MODERATE | statsmodels has GARCH, need >250 days data check |
-| Efficient Frontier | data_ready | buildable | MODERATE | scipy.optimize available |
-| Beta | data_ready | needs_extension | LOW_EFFORT | benchmark data exists |
-| Treynor Ratio | data_ready | needs_extension | LOW_EFFORT | once Beta + returns exist |
-| Sortino Ratio | data_ready | needs_extension | LOW_EFFORT | calculate_returns() exists |
-| Information Ratio | data_ready | needs_extension | LOW_EFFORT | benchmark tracking exists |
-| Correlation Analysis | data_ready | already_implemented | READY | numpy.corrcoef available |
-| Rolling Metrics | data_ready | needs_extension | LOW_EFFORT | pandas rolling window |
-| Benchmark Tracking | data_ready | already_implemented | READY | plot_performance() exists |
-| Sentiment-Driven Alpha | data_blocked | complex_build | BLOCKED | No news text corpus, need NLP model |
-| Factor Analysis (Fama-French) | data_blocked | complex_build | BLOCKED | No factor data source |
-| Conditional VaR | data_ready | buildable | HIGH_EFFORT | Need VaR first + tail distribution modeling |
-| Sector Allocation | data_gap | buildable | HIGH_EFFORT | No sector classification data in current schema |
+| Method | Data | Functions | Feasibility | Effort | Probe | Notes |
+|--------|------|-----------|-------------|--------|-------|-------|
+| Sharpe Ratio | data_ready | needs_extension | LOW_EFFORT | Low | PASS | calculate_returns() at analytics.py:42 |
+| Maximum Drawdown | data_ready | needs_extension | LOW_EFFORT | Low | PASS | portfolio_value() at analytics.py:78 |
+| Value at Risk (parametric) | data_ready | buildable | MODERATE | Build | N/A | scipy.stats at requirements.txt:3 |
+| Value at Risk (Monte Carlo) | data_ready | buildable | MODERATE | Build | N/A | numpy.random confirmed |
+| Monte Carlo Simulation | data_ready | buildable | MODERATE | Build | N/A | numpy available |
+| GARCH Volatility | data_ready | buildable | MODERATE | Build | N/A | statsmodels at requirements.txt:4 |
+| Efficient Frontier | data_ready | buildable | MODERATE | Build | N/A | scipy.optimize confirmed |
+| Beta | data_ready | needs_extension | LOW_EFFORT | Low | PASS | BenchmarkIndex at models.py:31 |
+| Treynor Ratio | data_ready | needs_extension | LOW_EFFORT | Low | N/A | depends on Beta |
+| Sortino Ratio | data_ready | needs_extension | LOW_EFFORT | Low | PASS | calculate_returns() at analytics.py:42 |
+| Information Ratio | data_ready | needs_extension | LOW_EFFORT | Low | PASS | benchmark data confirmed |
+| Correlation Analysis | data_ready | already_implemented | READY | Wire up | PASS | numpy.corrcoef at analytics.py:5 |
+| Rolling Metrics | data_ready | needs_extension | LOW_EFFORT | Low | PASS | pandas.rolling at analytics.py:5 |
+| Benchmark Tracking | data_ready | needs_extension | LOW_EFFORT | Low | FAIL→downgraded | plot_performance() only plots, no tracking error calc |
+| Sentiment-Driven Alpha | data_blocked | complex_build | BLOCKED | — | N/A | No news text corpus |
+| Factor Analysis (Fama-French) | data_blocked | complex_build | BLOCKED | — | N/A | No factor data source |
+| Conditional VaR | data_ready | buildable | HIGH_EFFORT | High | N/A | Need VaR first + tail modeling |
+| Sector Allocation | data_gap | buildable | HIGH_EFFORT | High | N/A | No sector classification data |
 ```
 
 **D4 — Ranking:**
