@@ -2,6 +2,8 @@
 
 > Point at API references. Get a verified CLI tool that agents know how to wield.
 
+![cliskill — Scaling AI Agents via API Compression](cliskill.png)
+
 cliskill turns API references into production-ready CLI tools that AI agents fully understand — how to use them, when to use them, when not to, and when to honestly give up. It delegates specification to [/clarity](https://github.com/FrancyJGLisboa/clarity), implementation to [/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator), and adds what neither has: an **automated evaluation-fix-rebuild loop**.
 
 ## What This Is
@@ -79,6 +81,8 @@ python scripts/check_deps.py       # Windows
 
 ## Usage
 
+### Create a new skill
+
 ```
 /cliskill <reference-1> [<reference-2> ...]
 ```
@@ -93,7 +97,24 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill https://developers.notion.com/reference "bidirectional sync to markdown"
 ```
 
-Resume an interrupted pipeline:
+### Update an existing skill
+
+When the API changes — new endpoints, breaking changes, deprecated features — update instead of starting from scratch:
+
+```
+/cliskill update <existing-skill-path> <new-reference-1> [...]
+```
+
+**Examples:**
+
+```
+/cliskill update ./weather-api-skill https://api.example.com/docs/v2
+/cliskill update ./notion-sync-skill https://developers.notion.com/reference/changelog
+```
+
+Update mode diffs the new references against the existing spec, shows you what changed, and only re-specs the delta. Existing passing scenarios are preserved and re-run to catch regressions.
+
+### Resume an interrupted pipeline
 
 ```
 /cliskill resume
@@ -123,13 +144,26 @@ The core innovation. When verification fails, cliskill classifies each failure:
 |---|---|
 | **Spec Gap** | Update spec, regenerate brief, rebuild |
 | **Implementation Gap** | Generate targeted fix prompt, rebuild |
-| **Scenario Gap** | Escalate to human (holdout tests are sacred) |
+| **Scenario Gap** | Guided escalation — you decide, not cliskill |
 
 Rules:
-- **3 loops maximum.** If not converged, escalate with diagnostics.
+- **3 loops maximum.** If not converged, escalate with guided resolution.
 - **Fix spec first.** Spec fixes often resolve implementation gaps as a side effect.
 - **Never auto-fix tests.** If the holdout test is wrong, only a human should change it.
 - **Preserve passing behavior.** Rebuilds target only failing scenarios.
+
+### Guided Escalation
+
+When cliskill needs your input (scenario gaps, convergence failures, loop exhaustion), it doesn't dump a wall of diagnostics. Instead, it walks you through each failure one at a time:
+
+- Shows what it expected vs. what happened
+- Gives its best-guess classification with reasoning
+- Offers clear options: agree, reclassify, fix the test, see the code, or skip
+- Summarizes the plan before executing
+
+### Update Mode
+
+When the API changes, `cliskill update` avoids starting from scratch. It diffs the new references against the existing spec, shows you what's new/changed/deprecated, and only re-specs the delta. All existing scenarios are re-run to catch regressions.
 
 ### Phase 4: DEPLOY
 

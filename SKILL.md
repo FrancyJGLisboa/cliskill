@@ -8,7 +8,8 @@ description: >-
   auto-fix, rebuild. Uses /clarity for specification and holdout verification,
   /agent-skill-creator for implementation and deployment.
   Triggers on: cliskill, build cli skill, agent-friendly cli, api to cli skill,
-  end-to-end skill pipeline, create and verify skill.
+  end-to-end skill pipeline, create and verify skill, update existing skill,
+  api changed update skill.
 license: MIT
 metadata:
   author: Francy Lisboa Charuto
@@ -32,6 +33,7 @@ The human provides references and reviews twice. Everything else is autonomous.
 ```
 /cliskill <reference-1> [<reference-2> ...]
 /cliskill resume
+/cliskill update <existing-skill-path> <new-reference-1> [<new-reference-2> ...]
 ```
 
 References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions — anything `/clarity` can ingest.
@@ -41,6 +43,7 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill https://api.example.com/docs https://github.com/example/weather-api
 /cliskill ./specs/finnhub-api-reference.pdf
 /cliskill resume
+/cliskill update ./weather-api-skill https://api.example.com/docs/v2
 ```
 
 ## Core Principles
@@ -52,6 +55,77 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 5. **Preserve passing behavior.** Rebuilds target only failing scenarios. Never re-architect what already works.
 6. **State is resumable.** Every phase writes state to `.cliskill/`. If interrupted, `/cliskill resume` picks up where it left off.
 7. **Agent-native output.** The produced CLI skill must be fully understandable by AI agents — clear activation triggers, explicit limitations, honest failure modes, and well-defined anti-goals.
+8. **Show progress, don't go silent.** Emit a status line at every phase and sub-phase boundary so the user always knows what's happening.
+
+## Progress Reporting
+
+The pipeline can run for minutes between review gates. Emit a structured status line at every phase boundary, sub-phase transition, and significant event. Never let more than ~30 seconds of visible work pass without a status update.
+
+### Format
+
+```
+cliskill ▸ {PHASE} ▸ {sub-phase}  {detail}
+```
+
+### Required Status Lines
+
+Emit these at the indicated points — they are not optional:
+
+**SPECIFY phase:**
+```
+cliskill ▸ SPECIFY ▸ starting    Delegating to /clarity with {N} reference(s)
+cliskill ▸ SPECIFY ▸ INGEST      Reading {reference name/URL}...
+cliskill ▸ SPECIFY ▸ INGEST      {N} endpoints / {N} models extracted
+cliskill ▸ SPECIFY ▸ SPECIFY     Generating spec...
+cliskill ▸ SPECIFY ▸ SPECIFY     {N} requirements drafted
+cliskill ▸ SPECIFY ▸ SCENARIO    Creating holdout scenarios...
+cliskill ▸ SPECIFY ▸ SCENARIO    {N} scenarios created
+cliskill ▸ SPECIFY ▸ HANDOFF     Generating skill brief...
+cliskill ▸ SPECIFY ▸ done        Ready for review — {N} requirements, {N} scenarios
+```
+
+**BUILD phase:**
+```
+cliskill ▸ BUILD ▸ starting      Delegating to /agent-skill-creator
+cliskill ▸ BUILD ▸ architecture  Designing skill structure...
+cliskill ▸ BUILD ▸ detection     Detecting target platforms...
+cliskill ▸ BUILD ▸ detection     Found: {platform list}
+cliskill ▸ BUILD ▸ implement     Building {skill-name}...
+cliskill ▸ BUILD ▸ validate      Running validation + security scan...
+cliskill ▸ BUILD ▸ done          {skill-name} built ({N} files)
+```
+
+**VERIFY phase:**
+```
+cliskill ▸ VERIFY ▸ starting     Running {N} holdout scenarios...
+cliskill ▸ VERIFY ▸ SC-{NNN}     ✓ {scenario title}
+cliskill ▸ VERIFY ▸ SC-{NNN}     ✗ {scenario title} — {root cause hint}
+cliskill ▸ VERIFY ▸ done         {passed}/{total} passed
+```
+
+**REPAIR LOOP:**
+```
+cliskill ▸ REPAIR ▸ loop {N}     {M} failure(s) to fix
+cliskill ▸ REPAIR ▸ classify     SC-{NNN}: {Spec Gap | Implementation Gap | Scenario Gap}
+cliskill ▸ REPAIR ▸ fix-spec     Updating {N} requirement(s) in spec...
+cliskill ▸ REPAIR ▸ fix-impl     Generating rebuild context for {N} failure(s)...
+cliskill ▸ REPAIR ▸ rebuilding   Back to BUILD (loop {N} of 3)
+```
+
+**DEPLOY phase:**
+```
+cliskill ▸ DEPLOY ▸ starting     Installing to {N} platform(s)...
+cliskill ▸ DEPLOY ▸ installed    {platform-name} ✓
+cliskill ▸ DEPLOY ▸ done         Deployed to {platform list}
+```
+
+### Rules
+
+- **Every status line is a single line.** No multi-line updates — these should scroll cleanly in a terminal.
+- **Include counts when available.** "{N} requirements" is better than "requirements generated."
+- **Name things.** "Reading finnhub-api-reference.pdf" is better than "Reading reference..."
+- **On resume**, emit a catchup line: `cliskill ▸ RESUME ▸ {phase}  Resuming from {phase}, loop {N}`
+- **On escalation**, the escalation block (defined in loop-protocol.md) replaces the status line — don't emit a status line AND an escalation block.
 
 ## Reference Files
 
@@ -99,7 +173,10 @@ This model means cliskill works best with agents that have large context windows
 On every invocation, check for existing state:
 
 ```
-if .cliskill/state.md exists AND command is "/cliskill resume":
+if command is "/cliskill update <skill-path> <refs>":
+    → enter UPDATE mode (see Phase 0: UPDATE below)
+
+else if .cliskill/state.md exists AND command is "/cliskill resume":
     read state.md → determine current phase and loop count
     resume from recorded phase
 else if .cliskill/state.md exists AND command is "/cliskill <refs>":
@@ -108,6 +185,97 @@ else if .cliskill/state.md exists AND command is "/cliskill <refs>":
 else:
     start Phase 1: SPECIFY
 ```
+
+---
+
+## Phase 0: UPDATE (conditional)
+
+**Entry:** `/cliskill update <existing-skill-path> <new-reference-1> [...]`
+
+Update mode modifies an existing cliskill-produced skill when the underlying API has changed, new endpoints have been added, or behavior needs to evolve. It avoids starting from scratch by diffing against the existing spec and preserving what already works.
+
+### Prerequisites
+
+The target skill must have been produced by cliskill (i.e., `.clarity/spec.md` and `scenarios/` exist alongside it). If not, suggest a fresh `/cliskill` run instead.
+
+### Instructions
+
+1. Read the existing spec at `.clarity/spec.md` and the existing skill brief at `.clarity/skill-brief.md`.
+2. Read the existing holdout scenarios in `scenarios/`.
+3. Pass the **new references** to `/clarity` in INGEST mode, producing `.clarity/update-context.md`.
+4. Diff the new context against the existing spec:
+
+```
+cliskill ▸ UPDATE ▸ diffing      Comparing new references against existing spec...
+```
+
+5. Classify each difference:
+
+| Change Type | Description |
+|---|---|
+| **New capability** | API endpoint/feature not in current spec |
+| **Changed behavior** | Existing endpoint changed parameters, response format, or semantics |
+| **Deprecated** | Endpoint removed or marked deprecated |
+| **Unchanged** | No difference from current spec |
+
+6. Present the update plan to the user:
+
+```
+## cliskill — Update Plan
+
+Existing skill: {skill-name}
+Current spec: {N} requirements, {N} scenarios
+
+### Changes detected
+
+| # | Type | Description |
+|---|------|-------------|
+| 1 | New capability | POST /v2/batch-forecast endpoint |
+| 2 | Changed behavior | GET /forecast now requires `units` parameter (was optional) |
+| 3 | Deprecated | GET /forecast/legacy removed in v2 |
+
+### What will happen
+
+- {N} new requirement(s) will be added to the spec
+- {N} existing requirement(s) will be updated
+- {N} requirement(s) will be marked deprecated
+- {N} new holdout scenario(s) will be created
+- All {N} existing scenarios will be re-run to catch regressions
+
+**Options:**
+1. **Approve** — proceed with all changes
+2. **Select** — choose which changes to include
+3. **Cancel** — keep the skill as-is
+```
+
+7. On approval, delegate to `/clarity` to:
+   - Update `.clarity/spec.md` with new/changed requirements (preserving existing FR-NNN numbering, appending new ones)
+   - Add new holdout scenarios for new/changed behavior (preserving existing SC-NNN files)
+   - Regenerate `.clarity/skill-brief.md`
+
+8. Write state and proceed to Phase 2: BUILD:
+```
+.cliskill/state.md:
+  phase: BUILD
+  status: in_progress
+  loop_count: 0
+  mode: update
+  previous_spec_hash: {hash of spec before update}
+  changes: [list of change descriptions]
+```
+
+### Update-specific verification
+
+During VERIFY, **all** scenarios are tested — both existing and new. This catches regressions where a change to support new behavior breaks existing behavior. The status line highlights this:
+
+```
+cliskill ▸ VERIFY ▸ starting     Running {N} scenarios ({M} existing + {K} new)...
+cliskill ▸ VERIFY ▸ SC-001       ✓ Basic forecast retrieval (existing)
+cliskill ▸ VERIFY ▸ SC-009       ✓ Batch forecast (new)
+cliskill ▸ VERIFY ▸ SC-003       ✗ Invalid location handling (existing, regression)
+```
+
+Regressions in existing scenarios are classified as Implementation Gaps and prioritized in the repair loop.
 
 ---
 
@@ -251,11 +419,7 @@ for each failure in eval report:
 
 # Route by failure type
 if ONLY Scenario Gaps:
-    escalate to human:
-        "All failures are Scenario Gaps. Holdout tests may need updating.
-         Review the eval report and adjust scenarios, then /cliskill resume."
-    update state: status = escalated_scenario_gap
-    STOP
+    → guided escalation (scenario_gap)
 
 if any Spec Gaps present:
     # Fix spec first — impl gaps may self-resolve
@@ -275,19 +439,11 @@ if ONLY Implementation Gaps:
 
 # Convergence check
 if same failure persists for 2 consecutive loops:
-    escalate to human:
-        "Failure SC-{NNN} has not converged after 2 attempts.
-         Manual intervention needed. See .cliskill/loop-{N}/ for diagnostics."
-    update state: status = escalated_no_convergence
-    STOP
+    → guided escalation (no_convergence)
 
 # Loop exhaustion
 if loop_count >= 3:
-    escalate to human:
-        "Maximum repair loops (3) exhausted. {N} failures remain.
-         See .cliskill/ for full diagnostic history."
-    update state: status = escalated_max_loops
-    STOP
+    → guided escalation (max_loops)
 ```
 
 Update state after each loop iteration:
@@ -297,6 +453,78 @@ Update state after each loop iteration:
   status: in_progress
   loop_count: {current}
   last_failure_ids: [SC-xxx, SC-yyy]
+```
+
+---
+
+## Guided Escalation
+
+When the repair loop needs human input, don't dump a wall of diagnostics. Walk the user through each failure interactively, one at a time, with clear options.
+
+### Escalation Flow
+
+For each failure requiring attention, present it individually:
+
+```
+## cliskill — Needs Your Input ({current}/{total} failures)
+
+**Loop:** {N} of 3 | **Reason:** {scenario_gap | no_convergence | max_loops}
+
+### SC-{NNN}: {scenario title}
+
+**What I expected:** {expected behavior from scenario}
+**What happened:** {actual behavior from eval}
+**My classification:** {Spec Gap | Implementation Gap | Scenario Gap}
+**Why I think so:** {1-2 sentence reasoning}
+
+**Options:**
+1. **Agree with my classification** — I'll {describe what the auto-fix would do}
+2. **Reclassify** — tell me the actual root cause
+3. **The test is wrong** — update scenario SC-{NNN} (you edit, I'll re-run)
+4. **Show me the code** — see the relevant implementation before deciding
+5. **Skip this one** — move to the next failure
+```
+
+Wait for user response before presenting the next failure.
+
+### Rules
+
+- **One failure at a time.** Never present all failures in a single block. The user should focus on one decision.
+- **Lead with your best guess.** Always show your classification and reasoning — the user is confirming or correcting, not starting from scratch.
+- **Option 4 is always available.** The user may need to see the implementation to decide. Show the relevant code section (not the whole file), then re-present the options.
+- **After all failures are resolved**, summarize the plan before executing:
+
+```
+## cliskill — Escalation Summary
+
+Resolved {N} failure(s):
+- SC-{NNN}: {classification} → {action}
+- SC-{NNN}: {classification} → {action}
+- SC-{NNN}: Scenario updated by user
+
+**Next step:** {Rebuild with fixes | Re-run verification | Done}
+
+Proceed? (yes / adjust)
+```
+
+- **On user reclassification**, update `.cliskill/loop-{N}/changes.md` with the user's classification and reasoning. This prevents the same misclassification on resume.
+- **On scenario update**, the user edits the scenario file directly. cliskill re-runs verification after all edits are complete. The holdout-is-sacred rule still holds — only the human touches scenarios.
+
+### Escalation by Reason
+
+| Reason | Guided behavior |
+|---|---|
+| **scenario_gap** | Present each scenario gap. Default option: "The test is wrong." User edits scenario, then `/cliskill resume`. |
+| **no_convergence** | Present the stuck failure with full loop history (what was tried in each loop). Default option: "Show me the code." |
+| **max_loops** | Present all remaining failures. Summarize what each loop attempted. Default option: "Reclassify" (the classification was likely wrong). |
+
+### Status Lines
+
+```
+cliskill ▸ ESCALATE ▸ starting   {N} failure(s) need your input
+cliskill ▸ ESCALATE ▸ SC-{NNN}   Waiting for input...
+cliskill ▸ ESCALATE ▸ SC-{NNN}   Resolved: {classification} → {action}
+cliskill ▸ ESCALATE ▸ done       {N} resolved — {next step}
 ```
 
 ---

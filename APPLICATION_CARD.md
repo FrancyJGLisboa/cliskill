@@ -1,5 +1,7 @@
 # Application Card: cliskill
 
+![cliskill — Scaling AI Agents via API Compression](cliskill.png)
+
 ## Problem
 
 AI agents need to use APIs. The naive approach is to load API documentation into the agent's context window. This doesn't scale.
@@ -101,13 +103,17 @@ cliskill is a conductor, not an orchestra. It orchestrates two independent skill
 Neither skill has an evaluation-fix-rebuild loop. cliskill adds that loop — the piece that turns "generate once and hope" into "generate, verify, fix, verify again."
 
 ```
-Human provides API references
+Human provides API references (or /cliskill update with new refs)
+         ↓
+    ┌──────────┐
+    │ UPDATE?  │  ← If updating: diff new refs against existing spec
+    └────┬─────┘
          ↓
     ┌─────────┐
     │ SPECIFY │  ← /clarity (ingest, spec, scenarios, handoff)
     └────┬────┘
          ↓
-   [Review Gate 1]  ← Human approves spec
+   [Review Gate 1]  ← Human approves spec (or update plan)
          ↓
     ┌─────────┐
     │  BUILD  │  ← /agent-skill-creator (architecture, detection, implementation)
@@ -123,12 +129,17 @@ Human provides API references
          ↓
     ┌──────────┐
     │  REPAIR  │  classify failure → fix spec or code → rebuild
-    └────┬─────┘
-         ↓
+    └────┬─────┘         │
+         │          needs human?
+         │               ↓
+         │         ┌───────────┐
+         │         │ ESCALATE  │  ← guided, one failure at a time
+         │         └─────┬─────┘
+         ↓               ↓
       (back to BUILD, max 3 loops)
 ```
 
-The human touches the pipeline twice: approving the spec, and approving the deployment. Everything between is autonomous.
+The human touches the pipeline twice: approving the spec, and approving the deployment. When escalation is needed, cliskill walks the user through each failure interactively — one at a time, with clear options — instead of dumping a diagnostic wall.
 
 ## Relationship to agent-skill-creator
 
@@ -149,7 +160,8 @@ The evolution is concrete:
 | **Verifies behavior** | No | Yes — holdout scenarios |
 | **Classifies failures** | No | Yes — spec gap vs impl gap vs test gap |
 | **Auto-fixes and rebuilds** | No | Yes — up to 3 loops |
-| **Knows when to give up** | No — always ships | Yes — escalates with diagnostics |
+| **Guided escalation** | No — always ships | Yes — walks user through each failure interactively |
+| **Update mode** | No — rebuild from scratch | Yes — diffs new refs against existing spec, preserves passing behavior |
 | **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
 
 The critical difference is the last row. agent-skill-creator *can* skip the spec and build directly from raw references. This is fast but fragile — the skill reflects whatever the LLM inferred from the docs, with no structured verification. cliskill forces the spec-first path: clarity extracts, structures, and creates holdout tests *before* the builder ever sees the brief. The builder implements against a verified spec, not against raw inference.
@@ -175,16 +187,18 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 
 For a cliskill-produced skill, the quality signals are:
 
-- **Holdout pass rate**: Did the skill pass scenarios the builder never saw?
-- **Activation precision**: Does the agent reach for this skill at the right time and avoid it at the wrong time?
-- **Context cost**: How many tokens does the agent spend to activate and use the skill?
-- **Failure honesty**: When the skill can't help, does the agent say so clearly?
+| Metric | What it measures | Typical range |
+|---|---|---|
+| **Holdout pass rate** | Did the skill pass scenarios the builder never saw? | ~60% on first build → 95%+ after repair loops |
+| **Activation precision** | Does the agent reach for this skill at the right time and avoid it at the wrong time? | Measured by trigger/anti-goal coverage in SKILL.md |
+| **Context cost** | How many tokens does the agent spend to activate and use the skill? | Target: <500 tokens for activation, vs 50K+ raw API docs |
+| **Failure honesty** | When the skill can't help, does the agent say so clearly? | Verified by holdout scenarios that test boundary conditions |
 
 ## Links
 
-- **Install**: `npx cliskill`
-- **Repository**: [github.com/FrancyJGLisboa/cliskill](https://github.com/FrancyJGLisboa/cliskill)
-- **npm**: [npmjs.com/package/cliskill](https://www.npmjs.com/package/cliskill)
+- **Install**: `npx cliskill` *(not yet published — pending npm release)*
+- **Repository**: [github.com/FrancyJGLisboa/cliskill](https://github.com/FrancyJGLisboa/cliskill) *(not yet public — pending GitHub release)*
+- **npm**: [npmjs.com/package/cliskill](https://www.npmjs.com/package/cliskill) *(not yet published)*
 - **Dependency — /clarity**: [github.com/FrancyJGLisboa/clarity](https://github.com/FrancyJGLisboa/clarity)
 - **Dependency — /agent-skill-creator**: [github.com/FrancyJGLisboa/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)
 

@@ -156,34 +156,36 @@ If a rebuild fixes some scenarios but introduces new failures:
 
 ## Escalation Protocol
 
-When escalating to the human, always provide:
+Escalation uses **guided escalation** — an interactive, one-failure-at-a-time flow defined in the main SKILL.md under "Guided Escalation." The full protocol lives there. This section covers the loop-protocol-specific rules.
 
-```markdown
-## cliskill — Escalation
+### State on Escalation
 
-**Reason:** {scenario_gap | no_convergence | max_loops}
-**Loop:** {current loop number} of 3
-
-### What happened
-{1-2 sentence summary}
-
-### Failures requiring attention
-
-| Scenario | Root Cause | Loops Stuck | Details |
-|----------|-----------|-------------|---------|
-| SC-{NNN} | {type} | {count} | {brief explanation} |
-
-### Diagnostic artifacts
-- Evaluation reports: .cliskill/loop-{N}/eval-report.md
-- Change logs: .cliskill/loop-{N}/changes.md
-- Current spec: .clarity/spec.md
-- Current skill: {skill directory}
-
-### Suggested next steps
-{Actionable suggestions based on failure type}
-
-After making changes, run `/cliskill resume` to continue.
+Update state immediately when entering escalation:
 ```
+.cliskill/state.md:
+  status: escalated_{reason}
+  escalation_failures: [SC-NNN, SC-NNN]
+  escalation_reason: {scenario_gap | no_convergence | max_loops}
+```
+
+### Resume After Escalation
+
+When `/cliskill resume` is called after an escalation:
+
+1. Read `.cliskill/state.md` — check `escalation_reason` and `escalation_failures`.
+2. If the user edited scenario files, detect changes via file modification timestamps.
+3. Re-run VERIFY on all scenarios (not just the escalated ones — edits may have side effects).
+4. If all pass → proceed to DEPLOY.
+5. If new failures appear → re-enter the repair loop (loop_count does NOT reset — the human intervention counts as a loop iteration).
+
+### Diagnostic Artifacts
+
+Even though escalation is now interactive, all artifacts are still written to disk for reference:
+
+- Evaluation reports: `.cliskill/loop-{N}/eval-report.md`
+- Change logs: `.cliskill/loop-{N}/changes.md` (includes user's reclassifications if any)
+- Current spec: `.clarity/spec.md`
+- Current skill: `{skill directory}`
 
 ---
 
