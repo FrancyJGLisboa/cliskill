@@ -16,6 +16,19 @@ SKILL_DIRS = {
 REQUIRED_SKILLS = ["clarity", "agent-skill-creator"]
 
 
+def _is_link_or_junction(path):
+    """Check if path is a symlink or Windows junction."""
+    if os.path.islink(path):
+        return True
+    # Windows junctions aren't detected by islink — check reparse point attribute
+    if os.name == "nt" and os.path.isdir(path):
+        import ctypes
+        FILE_ATTRIBUTE_REPARSE_POINT = 0x0400
+        attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+        return attrs != -1 and (attrs & FILE_ATTRIBUTE_REPARSE_POINT)
+    return False
+
+
 def find_skill(name):
     """Return list of (platform, path) where this skill is installed."""
     found = []
@@ -24,7 +37,7 @@ def find_skill(name):
         skill_md = os.path.join(skill_path, "SKILL.md")
         if os.path.isfile(skill_md):
             found.append((platform, skill_path))
-        elif os.path.islink(skill_path):
+        elif _is_link_or_junction(skill_path):
             target = os.path.realpath(skill_path)
             if os.path.isfile(os.path.join(target, "SKILL.md")):
                 found.append((platform, f"{skill_path} -> {target}"))

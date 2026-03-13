@@ -25,6 +25,14 @@ Both skills must be installed:
 
 ## Install
 
+### One-liner (any platform with npm)
+
+```bash
+npx skills add FrancyJGLisboa/cliskill
+```
+
+### macOS / Linux
+
 ```bash
 git clone https://github.com/FrancyJGLisboa/cliskill
 cd cliskill
@@ -44,10 +52,34 @@ Other options:
 ./scripts/install.sh --uninstall    # Remove symlinks
 ```
 
-Verify dependencies:
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/FrancyJGLisboa/cliskill
+cd cliskill
+.\scripts\install.ps1
+```
+
+With dependencies:
+
+```powershell
+.\scripts\install.ps1 -WithDeps
+```
+
+Other options:
+
+```powershell
+.\scripts\install.ps1 -DryRun      # Preview without changes
+.\scripts\install.ps1 -Uninstall   # Remove symlinks/junctions
+```
+
+> **Note:** On Windows, symlinks require Developer Mode or admin privileges. The installer falls back to directory junctions (no admin needed), then to copy as a last resort.
+
+### Verify dependencies
 
 ```bash
-python3 scripts/check_deps.py
+python3 scripts/check_deps.py      # macOS/Linux
+python scripts/check_deps.py       # Windows
 ```
 
 ## Usage
@@ -142,7 +174,8 @@ cliskill/
 │   └── examples.md                 # Happy path + fix loop examples
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker
-│   └── install.sh                  # Cross-platform installer
+│   ├── install.sh                  # Installer (macOS/Linux)
+│   └── install.ps1                 # Installer (Windows PowerShell)
 ├── README.md
 └── LICENSE
 ```
