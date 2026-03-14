@@ -2,7 +2,7 @@
 
 > Your agents don't need to read the docs. They need a tool that already did.
 
-![cliskill — Scaling AI Agents via API Compression](cliskill.png)
+![cliskill — Self-Bootstrapping CLI Skills for AI Agents](cliskill.png)
 
 cliskill turns any reference material — API docs, repositories, PDFs, course materials, pasted text — into **self-bootstrapping CLI tools** that AI agents fully understand and users just clone and run. It delegates specification to [/clarity](https://github.com/FrancyJGLisboa/clarity), implementation to [/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator), and adds what neither has: an **automated evaluation-fix-rebuild loop**.
 

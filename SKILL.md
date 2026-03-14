@@ -1,17 +1,18 @@
 ---
 name: cliskill
 description: >-
-  Framework for building AI-agent-friendly CLI tools. Point at API references —
-  repos, URLs, docs, code — and get a verified, deployed agent skill packaged
-  as a CLI that agents fully understand: how to use it, when to use it, when
-  not to, and when to give up. Closed-loop pipeline: specify, build, evaluate,
-  auto-fix, rebuild. Uses /clarity for specification and holdout verification,
+  Generates self-bootstrapping, cross-platform, agent-friendly CLI skills from
+  any reference material — API docs, repositories, PDFs, course materials,
+  pasted text, URLs. Produced skills are git repos: clone and run on any OS,
+  any agent tool. Closed-loop pipeline: specify, build, evaluate, auto-fix,
+  rebuild. Uses /clarity for specification and holdout verification,
   /agent-skill-creator for implementation and deployment.
   Triggers on: cliskill, build cli skill, agent-friendly cli, api to cli skill,
   end-to-end skill pipeline, create and verify skill, update existing skill,
   api changed update skill, discover what analytics are possible, turn repo
-  into agent skill, cross-reference repo with course material, optimize model
-  metrics, continuous optimization loop, research mode, autoresearch with cliskill.
+  into agent skill, cross-reference repo with course material, turn PDF into
+  CLI tool, build skill from documentation, optimize model metrics, continuous
+  optimization loop, research mode, autoresearch with cliskill.
 license: MIT
 metadata:
   author: Francy Lisboa Charuto
@@ -24,9 +25,9 @@ metadata:
 
 # cliskill — AI-Agent-Friendly CLI Skill Framework
 
-> Point at API references. Get a verified CLI tool that agents know how to wield.
+> Point at any reference material. Get a self-installing CLI tool that agents know how to wield.
 
-cliskill is a closed-loop pipeline that transforms API references into production-ready CLI tools — tools that AI agents fully understand: how to use them, when to use them, when not to, and when to honestly give up. It delegates specification to `/clarity`, implementation to `/agent-skill-creator`, and adds what neither has: an **automated evaluation-fix-rebuild loop**.
+cliskill is a closed-loop pipeline that transforms any reference material — API docs, repositories, PDFs, course materials, pasted text — into **self-bootstrapping CLI skills** that work on any OS and any agent tool. The produced skills are git repos: users clone and run, agents read the SKILL.md and wield. It delegates specification to `/clarity`, implementation to `/agent-skill-creator`, and adds what neither has: an **automated evaluation-fix-rebuild loop** and **self-bootstrapping packaging**.
 
 The human provides references and reviews twice. Everything else is autonomous.
 

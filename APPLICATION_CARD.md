@@ -2,7 +2,7 @@
 
 > Your agents don't need to read the docs. They need a tool that already did.
 
-![cliskill — Scaling AI Agents via API Compression](cliskill.png)
+![cliskill — Self-Bootstrapping CLI Skills for AI Agents](cliskill.png)
 
 ## Problem
 
@@ -122,7 +122,7 @@ Generating CLI wrappers around APIs is easy. Generating CLI wrappers that *actua
 
 cliskill closes this gap with a **holdout evaluation loop**:
 
-1. `/clarity` generates a spec and holdout test scenarios from the API docs
+1. `/clarity` generates a spec and holdout test scenarios from the reference material
 2. `/agent-skill-creator` builds the CLI skill from the spec
 3. The skill is tested against the holdout scenarios — scenarios the builder never saw
 4. Failures are classified (spec gap? implementation gap? test gap?) and auto-fixed
