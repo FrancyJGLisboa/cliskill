@@ -132,13 +132,13 @@ The holdout separation is architecturally load-bearing. The builder never sees t
 
 ## Distribution
 
-cliskill is distributed via GitHub. Clone and run the installer:
+cliskill is distributed via GitHub. Clone and run:
 
 ```bash
 git clone https://github.com/FrancyJGLisboa/cliskill
 cd cliskill
-./scripts/install.sh --with-deps    # macOS/Linux
-.\scripts\install.ps1 -WithDeps     # Windows (PowerShell)
+./cliskill              # macOS/Linux
+.\cliskill.ps1          # Windows (PowerShell)
 ```
 
 The installer handles the full onboarding flow:
@@ -151,7 +151,7 @@ The installer handles the full onboarding flow:
 3. **Dependency installation** — clones `/clarity` and `/agent-skill-creator` into the primary platform's skill directory, then symlinks to others. No manual setup.
 4. **Cross-OS compatibility** — on Windows, falls back from symlinks to directory junctions (no admin required) to copy as a last resort.
 
-A user with git and Python goes from zero to working `/cliskill` in two commands. Dependencies are also auto-installed at runtime via `check_deps.py` if somehow missing after install — defense in depth.
+Clone and run — same pattern as the skills cliskill produces. Dependencies are also auto-installed at runtime via `check_deps.py` if somehow missing after install — defense in depth.
 
 ## Architecture
 

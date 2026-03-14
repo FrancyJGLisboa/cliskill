@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# cliskill — self-bootstrapping installer.
+# Clone the repo, run this file. That's it.
+#
+#   git clone https://github.com/FrancyJGLisboa/cliskill
+#   cd cliskill
+#   ./cliskill              # installs to all detected agent tools + deps
+#   ./cliskill --uninstall  # removes everything
+#   ./cliskill --dry-run    # preview without changes
+#
+# POSIX-compatible (bash, dash, zsh, ash).
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Pass all flags through to the installer
+exec sh "$SCRIPT_DIR/scripts/install.sh" --with-deps "$@"

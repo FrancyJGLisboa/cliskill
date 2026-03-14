@@ -25,7 +25,7 @@ The human provides references and reviews twice. Everything between is autonomou
 ```bash
 git clone https://github.com/FrancyJGLisboa/cliskill
 cd cliskill
-./scripts/install.sh --with-deps
+./cliskill
 ```
 
 **Windows (PowerShell):**
@@ -33,10 +33,10 @@ cd cliskill
 ```powershell
 git clone https://github.com/FrancyJGLisboa/cliskill
 cd cliskill
-.\scripts\install.ps1 -WithDeps
+.\cliskill.ps1
 ```
 
-The installer:
+That's it. The installer:
 
 1. Checks prerequisites (git, Python 3.10+) with OS-specific install guidance if missing
 2. Detects your AI coding tool (Claude Code, Cursor, Copilot, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline)
@@ -46,8 +46,8 @@ The installer:
 Other options:
 
 ```bash
-./scripts/install.sh --dry-run      # Preview without changes
-./scripts/install.sh --uninstall    # Remove symlinks
+./cliskill --dry-run      # Preview without changes
+./cliskill --uninstall    # Remove symlinks
 ```
 
 ### Dependencies
@@ -271,6 +271,8 @@ If no platform is detected, defaults to Claude Code. The installer installs to *
 
 ```
 cliskill/
+├── cliskill                        # Self-bootstrapping installer (macOS/Linux)
+├── cliskill.ps1                    # Self-bootstrapping installer (Windows)
 ├── SKILL.md                        # The pipeline specification
 ├── references/
 │   ├── discovery-protocol.md       # Capability extraction + feasibility
