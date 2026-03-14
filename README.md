@@ -4,11 +4,11 @@
 
 ![cliskill — Scaling AI Agents via API Compression](cliskill.png)
 
-cliskill turns API references into production-ready CLI tools that AI agents fully understand — how to use them, when to use them, when not to, and when to honestly give up. It delegates specification to [/clarity](https://github.com/FrancyJGLisboa/clarity), implementation to [/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator), and adds what neither has: an **automated evaluation-fix-rebuild loop**.
+cliskill turns any reference material — API docs, repositories, PDFs, course materials, pasted text — into **self-bootstrapping CLI tools** that AI agents fully understand and users just clone and run. It delegates specification to [/clarity](https://github.com/FrancyJGLisboa/clarity), implementation to [/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator), and adds what neither has: an **automated evaluation-fix-rebuild loop**.
 
 ## What This Is
 
-A framework for building agent-native CLI skills. Not just CLI wrappers around APIs — skills that an AI agent can read, understand its limits, and wield with judgment.
+A framework for generating self-installing, cross-platform, agent-friendly CLI skills from any reference material. The produced skills are git repos that work on any OS (`./skill` on macOS/Linux, `.\skill.ps1` on Windows) and any agent tool (Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline).
 
 ```
 API References → SPECIFY → [Review] → BUILD → VERIFY → DEPLOY
@@ -216,13 +216,30 @@ Installs the skill to all detected platforms.
 
 ## What Makes the Output "Agent-Friendly"
 
-The CLI skills produced by cliskill aren't just API wrappers. They include:
+The CLI skills produced by cliskill aren't just wrappers. They are self-contained, self-installing git repositories:
 
+- **Clone and run** — `./skill <command>` auto-bootstraps Python, uv, venv, and dependencies on first run. No manual setup.
+- **Cross-platform** — bash wrapper (`./skill`) + PowerShell wrapper (`.\skill.ps1`). Works on macOS, Linux, and Windows.
+- **JSON output** — structured JSON to stdout for agent consumption. Errors as JSON to stderr with exit code 1.
 - **SKILL.md** with clear trigger descriptions — agents know *when* to reach for this tool
 - **Anti-goals** — agents know what *not* to attempt
 - **Error handling guidance** — agents know how to fail gracefully and what to tell the user
 - **Holdout-verified behavior** — the skill was tested against scenarios the builder never saw
 - **Activation keywords** — agents can match user intent to the right skill
+- **Works on any agent tool** — pure CLI interface means Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, and Cline can all execute it
+
+### Example
+
+[na-analytics](https://github.com/FrancyJGLisboa/na-analytics) — built by cliskill from a commodity price ETL repo + a trading course PDF:
+
+```bash
+$ git clone https://github.com/FrancyJGLisboa/na-analytics && cd na-analytics
+$ ./na-analytics ppe --commodity soja
+# auto-installs deps, fetches live data from GitHub, returns:
+{"results": {"exw_brl_sc": 140.70}, "resolved_from_pipeline": {"cbot": 1218.25, "fx": 5.3535}}
+```
+
+11 commands, zero setup, live data, verified against course formulas.
 
 ## Platform Support
 

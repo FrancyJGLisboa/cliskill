@@ -6,34 +6,45 @@
 
 ## Problem
 
-AI agents need to use APIs. The naive approach is to load API documentation into the agent's context window. This doesn't scale.
+AI agents need tools. The naive approach is to load documentation into the agent's context window — API references, library docs, course materials, repo READMEs. This doesn't scale.
 
-A single API reference can consume 50,000+ tokens. Two or three APIs and the agent has burned its context window before it starts reasoning. The agent becomes slow, expensive, and confused — drowning in endpoint specifications when it should be solving the user's problem.
+A single API reference can consume 50,000+ tokens. A repo with methodology docs can exceed 100,000. The agent burns its context window before it starts reasoning — slow, expensive, and confused.
 
-The deeper issue: **agents don't need to understand APIs. They need to understand tools.**
+The deeper issue: **agents don't need to understand documentation. They need tools they can wield.**
 
-A human developer reads API docs once, builds a mental model, and then works from that model — not by re-reading the docs on every call. Agents should work the same way, but they can't build persistent mental models across sessions. Every conversation starts from zero.
+A human developer reads docs once, builds a mental model, and works from that model. Agents can't build persistent mental models across sessions. Every conversation starts from zero. And even if the agent understands the docs, the user still needs to install dependencies, configure environments, and debug setup issues before the first query runs.
 
 ## Solution
 
-cliskill compresses API documentation into CLI tools that agents can wield without understanding the underlying API. It also works in reverse — given a repo and reference material, it discovers what analytics are possible and builds them. And for ML pipelines, it runs continuous optimization loops with the same rigor.
+cliskill turns any reference material — API docs, repositories, PDFs, course materials, pasted text — into **self-bootstrapping CLI tools** that AI agents can wield on any platform, on any OS, without setup.
+
+The produced skills are git repositories. The user experience:
+
+```bash
+git clone <skill-repo>
+cd <skill>
+./skill-name <command>        # macOS/Linux — auto-installs deps on first run
+.\skill-name.ps1 <command>    # Windows PowerShell — same
+```
+
+No `pip install`, no environment setup, no configuration. Clone and run.
 
 Three entry points, one pipeline:
 
 ```
-1. API → CLI skill (standard)
+1. API docs → CLI skill (standard)
    Raw API docs (50,000+ tokens)
        → clarity extracts what matters
    Verified spec + holdout scenarios
        → agent-skill-creator builds the CLI
-   SKILL.md (~300 lines) + scripts (agent never reads)
-       → agent activates the skill in ~500 tokens
+   Self-bootstrapping skill repo
+       → agent activates in ~500 tokens, user clones and runs
 
 2. Repo + knowledge → analytics skill (discover)
    Repository code + course materials / methodology docs
        → cross-reference capabilities against methods
    Ranked feasibility report → user selects
-       → standard pipeline builds and verifies the skill
+       → pipeline builds, verifies, and packages the skill
 
 3. Pipeline + metric → optimized model (research)
    ML pipeline + domain knowledge
@@ -45,11 +56,37 @@ Three entry points, one pipeline:
 The result is a CLI skill where:
 
 - The **SKILL.md** tells the agent what commands exist, when to use them, and when not to (~300 lines, loaded only when relevant)
-- The **scripts/** contain the actual API logic (the agent calls them, never reads them)
+- The **scripts/** contain the actual logic (the agent calls them, never reads them)
 - The **anti-goals** tell the agent what to honestly refuse
 - The **error handling** tells the agent how to fail gracefully
+- The **wrappers** (`./skill` + `.\skill.ps1`) auto-bootstrap Python, uv, venv, and dependencies on first run — on any OS
+- The **JSON output** to stdout is structured for agent consumption; errors go to stderr with exit code 1
 
-A 50,000-token API reference becomes a 500-token tool activation. The agent spends its context on reasoning, not on understanding its tools.
+A 50,000-token API reference becomes a 500-token tool activation. The agent spends its context on reasoning, not on understanding its tools. The user spends zero time on setup.
+
+### Example: na-analytics
+
+[na-analytics](https://github.com/FrancyJGLisboa/na-analytics) was built by cliskill's discover mode from a commodity price ETL repo + a professional trading course PDF. The result:
+
+- **11 commands** — basis, PPE, futures curves, crush margins, breakeven, profitability matrices
+- **Zero setup** — clones and runs, fetches live daily-updated data from GitHub
+- **Verified** — 17 holdout scenarios, 3 known-answer tests from course material (exact match)
+- **Cross-platform** — bash + PowerShell wrappers
+- **Agent-tested** — Claude Code agents used it successfully on first try
+
+```bash
+$ git clone https://github.com/FrancyJGLisboa/na-analytics && cd na-analytics
+$ ./na-analytics spread --commodity soja --indicator soja-mercado-fisico-sindicatos-e-cooperativas
+{
+  "summary": {"mean": 115.27, "min": 99.0, "max": 130.0, "count": 30},
+  "extremes": {
+    "lowest":  {"location": "Campo Novo do Parecis/MT", "price": 99.0},
+    "highest": {"location": "Porto Santos/SP", "price": 130.0}
+  }
+}
+```
+
+From PDF course formulas to working CLI analytics — verified, self-installing, cross-platform.
 
 ## Why CLI
 
@@ -68,13 +105,16 @@ A traditional CLI tool is designed for humans. An agent-friendly CLI skill is de
 
 | Aspect | Human CLI | Agent-Friendly Skill |
 |--------|-----------|---------------------|
+| **Setup** | `pip install`, configure, read docs | `git clone` → `./skill <command>` — auto-bootstraps on first run, any OS |
 | **Discovery** | `man` pages, README | SKILL.md with activation triggers — the agent knows *when* to reach for this tool based on user intent |
 | **Scope** | Feature-rich, many flags | Focused on the 80% path — 4-6 analyses, not 40 endpoints |
 | **Limitations** | Implied, learned through experience | Explicit anti-goals — the agent knows what *not* to attempt |
-| **Failure** | Stack traces, error codes | Guided failure — the agent knows what to tell the user and what to try next |
+| **Failure** | Stack traces, error codes | Guided failure — JSON errors to stderr with hints the agent can act on |
+| **Output** | Human-readable text | Structured JSON to stdout — agents parse, don't regex |
+| **Platform** | OS-specific installers | Bash + PowerShell wrappers — works on macOS, Linux, Windows |
 | **Context cost** | Irrelevant to humans | Minimal activation footprint — metadata first, full instructions only when needed |
 
-The critical property: **an agent reading only the SKILL.md should be able to use the tool correctly, know its limits, and fail gracefully.** If the agent needs to read the source code or API docs to use the skill, the skill has failed.
+The critical properties: **an agent reading only the SKILL.md should be able to use the tool correctly, know its limits, and fail gracefully.** And **a user should go from zero to working queries in one command after clone.** If the agent needs to read source code, or the user needs to install dependencies manually, the skill has failed.
 
 ## The Verification Gap
 
@@ -193,6 +233,8 @@ The evolution is concrete:
 | **Discovery mode** | No — user must know what to build | Yes — cross-references repo capabilities against knowledge sources, ranks feasibility |
 | **Research mode** | No — binary pass/fail only | Yes — continuous metric optimization with experiment classification and convergence detection |
 | **Update mode** | No — rebuild from scratch | Yes — diffs new refs against existing spec, preserves passing behavior |
+| **Self-bootstrapping** | No — user installs deps manually | Yes — produced skills auto-install Python, uv, venv, and deps on first run |
+| **Cross-platform** | No — platform-specific build | Yes — every skill ships with bash + PowerShell wrappers |
 | **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
 
 The critical difference is the last row. agent-skill-creator *can* skip the spec and build directly from raw references. This is fast but fragile — the skill reflects whatever the LLM inferred from the docs, with no structured verification. cliskill forces the spec-first path: clarity extracts, structures, and creates holdout tests *before* the builder ever sees the brief. The builder implements against a verified spec, not against raw inference.
@@ -206,9 +248,11 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 **cliskill is good at:**
 - APIs with documentation (REST, GraphQL, well-documented libraries)
 - Repos with code + reference material (discover mode: cross-reference capabilities against methods)
+- PDFs, course materials, textbooks, methodology docs — any structured knowledge source
+- Pasted text, URLs, free-text descriptions — anything `/clarity` can ingest
 - Continuous metric optimization (research mode: RMSE, Pearson r, F1 — any scalar metric with an eval harness)
 - Tools with clear input/output contracts
-- Skills that can be expressed as CLI commands with structured output
+- Skills that can be expressed as CLI commands with structured JSON output
 
 **cliskill is not designed for:**
 - Real-time streaming APIs (WebSockets, SSE) — CLI is request/response
@@ -227,10 +271,12 @@ For a cliskill-produced skill, the quality signals are:
 | **Activation precision** | Does the agent reach for this skill at the right time and avoid it at the wrong time? | Measured by trigger/anti-goal coverage in SKILL.md |
 | **Context cost** | How many tokens does the agent spend to activate and use the skill? | Target: <500 tokens for activation, vs 50K+ raw API docs |
 | **Failure honesty** | When the skill can't help, does the agent say so clearly? | Verified by holdout scenarios that test boundary conditions |
+| **Time to first query** | How fast does a new user go from zero to results? | Target: `git clone` + one command. No install step. |
 
 ## Links
 
 - **Repository**: [github.com/FrancyJGLisboa/cliskill](https://github.com/FrancyJGLisboa/cliskill)
+- **Example skill**: [github.com/FrancyJGLisboa/na-analytics](https://github.com/FrancyJGLisboa/na-analytics) — agricultural commodity analytics, built by cliskill discover mode
 - **Dependency — /clarity**: [github.com/FrancyJGLisboa/clarity](https://github.com/FrancyJGLisboa/clarity)
 - **Dependency — /agent-skill-creator**: [github.com/FrancyJGLisboa/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)
 
