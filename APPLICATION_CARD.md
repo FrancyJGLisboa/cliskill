@@ -108,7 +108,7 @@ cliskill reaches every AI coding tool through three tiers:
 
 2. **Workflow adapters** — Windsurf and Cline have their own formats. The installer generates thin adapters (`.windsurf/workflows/cliskill.md`, `.clinerules/workflows/cliskill.md`) that point back to SKILL.md.
 
-3. **MCP bridge** — A FastMCP server (`mcp/server.py`) exposes the pipeline as 6 tools any MCP client can call. Every major platform supports MCP. The server reads SKILL.md at runtime — no logic duplication.
+3. **MCP bridge** — A FastMCP server (`mcp_bridge/server.py`) exposes the pipeline as 6 tools any MCP client can call. Every major platform supports MCP. The server reads SKILL.md at runtime — no logic duplication.
 
 ## Why CLI
 

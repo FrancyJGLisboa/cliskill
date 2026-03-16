@@ -394,7 +394,7 @@ cliskill/
 │   ├── examples.md                 # Happy path + fix loop examples
 │   └── self-improvement-protocol.md # Self-improvement loops (both layers)
 ├── .cliskill-meta/                    # Build metrics + experiment state (created at runtime)
-├── mcp/
+├── mcp_bridge/
 │   ├── server.py                      # MCP bridge (auto-installed with fastmcp)
 │   └── requirements.txt               # FastMCP dependency
 ├── .mcp.json                          # MCP server auto-config for MCP-aware tools

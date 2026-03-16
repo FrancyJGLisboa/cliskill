@@ -280,10 +280,17 @@ if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
         echo "  ok: fastmcp (MCP bridge ready)"
     else
         echo "  Installing fastmcp for MCP bridge..."
-        python3 -m pip install --quiet fastmcp 2>/dev/null || pip3 install --quiet fastmcp 2>/dev/null || {
-            echo "  [info] Could not install fastmcp — MCP bridge unavailable"
-            echo "         Install manually: pip install fastmcp"
-        }
+        if command -v uv >/dev/null 2>&1; then
+            uv pip install --quiet fastmcp 2>/dev/null && echo "  ok: fastmcp installed (via uv)" || {
+                echo "  [info] Could not install fastmcp — MCP bridge unavailable"
+                echo "         Install manually: uv pip install fastmcp"
+            }
+        else
+            python3 -m pip install --quiet fastmcp 2>/dev/null || pip3 install --quiet fastmcp 2>/dev/null || {
+                echo "  [info] Could not install fastmcp — MCP bridge unavailable"
+                echo "         Install manually: pip install fastmcp"
+            }
+        fi
     fi
     echo ""
 fi

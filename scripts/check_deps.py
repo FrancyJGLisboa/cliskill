@@ -169,9 +169,23 @@ def main():
         importlib.import_module("fastmcp")
         print("  [ok] fastmcp installed — MCP bridge available")
     except ImportError:
-        print("  [info] fastmcp not installed — MCP bridge unavailable")
-        print("         Install with: pip install fastmcp")
-        print("         MCP is optional — SKILL.md works without it")
+        # Also check if available via uv
+        uv_available = shutil.which("uv") is not None
+        if uv_available:
+            result = subprocess.run(
+                ["uv", "run", "python3", "-c", "import fastmcp"],
+                capture_output=True, timeout=10,
+            )
+            if result.returncode == 0:
+                print("  [ok] fastmcp installed (via uv) — MCP bridge available")
+            else:
+                print("  [info] fastmcp not installed — MCP bridge unavailable")
+                print("         Install with: uv pip install fastmcp")
+                print("         MCP is optional — SKILL.md works without it")
+        else:
+            print("  [info] fastmcp not installed — MCP bridge unavailable")
+            print("         Install with: pip install fastmcp")
+            print("         MCP is optional — SKILL.md works without it")
     print()
 
     if all_ok:
