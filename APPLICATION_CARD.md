@@ -88,6 +88,20 @@ $ ./na-analytics spread --commodity soja --indicator soja-mercado-fisico-sindica
 
 From PDF course formulas to working CLI analytics — verified, self-installing, cross-platform.
 
+## Real-World Workflows
+
+**Maria (VS Code + Copilot, São Paulo)** — wraps her FastAPI app. Types `/cliskill ./docs/api-reference.md "wrap my endpoints"` in Copilot Chat agent mode. VIBE proposes 4 checks, she says "go." Pipeline runs autonomously — 1 repair loop, deploys. Total human input: one sentence, one thumbs up.
+
+**Kenji (Claude Code, Tokyo)** — has a portfolio repo and a finance textbook but doesn't know what to build. Types `/cliskill ./repo ./textbook.pdf "what analytics can I build?"`. Intent inference detects DISCOVER mode. Discovery ranks 14 feasible methods, he picks 11. Pipeline builds and verifies. Agents can now run `portfolio-analytics sharpe --ticker AAPL,MSFT`.
+
+**Priya (Cursor, Bangalore)** — wants to improve her crop yield RMSE. Types `/cliskill ./pipeline ./methods.pdf "optimize RMSE"`. Intent inference detects RESEARCH mode. OPTIMIZE runs 12 experiments, improves RMSE from 0.42 to 0.31. She accepts the best model.
+
+**Yuki (Windsurf, Osaka)** — wraps an internal monitoring API. Types `/cliskill` in Cascade — the workflow adapter (generated during install) reads SKILL.md, runs the pipeline. Happy path: all scenarios pass first try.
+
+**Diego (Gemini CLI, Mexico City)** — student with weather CSVs and a climate textbook. Types `/cliskill ./data ./textbook.pdf "what can I analyze?"`. DISCOVER finds 8 analyses, he picks 4. Gets a working CLI tool for his class demo. Zero prior knowledge of cliskill.
+
+Every persona: clone, run installer, describe what they want, approve checks, walk away. The tool they use doesn't matter — cliskill reaches all of them.
+
 ## Cross-Platform Delivery
 
 cliskill reaches every AI coding tool through three tiers:

@@ -70,6 +70,61 @@ python3 scripts/check_deps.py      # macOS/Linux
 python scripts/check_deps.py       # Windows
 ```
 
+## Who Uses This
+
+### Maria — Data scientist, São Paulo, VS Code + Copilot
+
+Maria has a FastAPI app and wants agents to use it. She clones cliskill, runs `./cliskill`. The installer detects VS Code, installs to `~/.copilot/skills/` and `~/.agents/skills/`, clones dependencies, installs fastmcp. She opens Copilot Chat agent mode:
+
+```
+Maria: /cliskill ./docs/api-reference.md "wrap my FastAPI endpoints"
+```
+
+Copilot loads the SKILL.md, runs VIBE (proposes 4 checks — "all CRUD endpoints covered?", "JSON output on all commands?", "auth errors return 401 with message?", "pagination works?"). Maria says "go." Pipeline runs autonomously — SPECIFY, BUILD, VERIFY (2 failures → 1 repair loop → all pass), DEPLOY. Skill installed to her detected platforms. Total human input: one sentence + one thumbs up.
+
+### Kenji — Fullstack dev, Tokyo, Claude Code
+
+Kenji has a portfolio analytics repo and a quantitative finance textbook PDF. He doesn't know what's possible:
+
+```
+Kenji: /cliskill ./portfolio-repo ./quant-finance.pdf "what analytics can I build?"
+```
+
+Intent inference detects DISCOVER mode. VIBE proposes 3 checks — "skill covers at least 5 analytics?", "all analytics verified against textbook formulas?", "works without API key for cached data?". Kenji approves. Discovery finds 14 feasible methods, ranks them, he picks Tier 1 + 2 (11 analytics). Pipeline builds, verifies (1 loop for VaR tail calculation), deploys. His agents can now run `portfolio-analytics sharpe --ticker AAPL,MSFT`.
+
+### Priya — ML engineer, Bangalore, Cursor
+
+Priya has a crop yield prediction pipeline and wants to improve RMSE:
+
+```
+Priya: /cliskill ./yield-pipeline ./agro-methodology.pdf "optimize RMSE for soybean yield"
+```
+
+Cursor v2.4 loads the SKILL.md as a skill. Intent inference detects RESEARCH mode. VIBE proposes checks — "RMSE improves over baseline?", "no negative yield predictions?", "handles missing weather data?". She approves. NEGOTIATE defines the metric, BOOTSTRAP generates the eval harness, OPTIMIZE runs 12 experiments across 4 strategy classes, improves RMSE from 0.42 to 0.31. She accepts the best model.
+
+### Yuki — DevOps, Osaka, Windsurf
+
+Yuki wants to wrap an internal monitoring API:
+
+```
+Yuki: /cliskill https://internal-api.company.com/docs
+```
+
+The installer generated `.windsurf/workflows/cliskill.md` during install. Yuki types `/cliskill` in Cascade — the workflow adapter reads SKILL.md, runs the full pipeline. Standard mode, no discovery needed. VIBE, SPECIFY, BUILD, VERIFY (all pass first try), DEPLOY. Clean happy path.
+
+### Diego — Student, Mexico City, Gemini CLI
+
+Diego found cliskill on GitHub. He has a class project — a weather data CSV and a climate science textbook:
+
+```
+diego@laptop:~$ gemini
+> /cliskill ./weather-data/ ./climate-textbook.pdf "what can I analyze?"
+```
+
+Gemini CLI loads the skill from `~/.gemini/skills/`. DISCOVER mode finds 8 feasible analyses. Diego picks 4 (temperature trends, precipitation correlation, seasonal decomposition, anomaly detection). The pipeline builds a CLI tool he can demo in class. Zero prior knowledge of how cliskill works — intent inference and VIBE handled everything.
+
+---
+
 ## Usage
 
 ### Create a new skill
