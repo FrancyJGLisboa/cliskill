@@ -1,0 +1,11 @@
+# Runtime artifacts (created during cliskill runs)
+.clarity/
+.cliskill/
+scenarios/
+
+# Build metrics (append-only, local to each install)
+.cliskill-meta/
+
+# Python
+__pycache__/
+*.pyc
