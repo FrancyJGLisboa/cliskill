@@ -41,8 +41,11 @@ That's it. The installer:
 
 1. Checks prerequisites (git, Python 3.10+) with OS-specific install guidance if missing
 2. Detects your AI coding tool (Claude Code, Cursor, Copilot, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline)
-3. Installs cliskill **and both dependencies** (`/clarity`, `/agent-skill-creator`) automatically
-4. On Windows, falls back to directory junctions or copy if symlinks need admin
+3. Installs to the vendor-neutral `~/.agents/skills/` path + all detected platform-specific paths
+4. Installs both dependencies (`/clarity`, `/agent-skill-creator`) automatically
+5. Installs `fastmcp` for the MCP bridge
+6. Generates workflow adapters for Windsurf and Cline (which don't support SKILL.md natively)
+7. On Windows, falls back to directory junctions or copy if symlinks need admin
 
 Other options:
 
@@ -273,18 +276,25 @@ $ ./na-analytics ppe --commodity soja
 
 ## Platform Support
 
+**Vendor-neutral** (works across multiple platforms via [agentskills.io](https://agentskills.io) standard):
+
+| Path | Scope | Checked by |
+|------|-------|-----------|
+| `~/.agents/skills/` | User-level | Copilot, Codex, Gemini, OpenCode |
+| `.agents/skills/` | Project-level | Same platforms |
+
 **User-level** (global — available across all projects):
 
-| Platform | Detection | Install path |
-|----------|-----------|-------------|
-| Claude Code | `~/.claude/` | `~/.claude/skills/` |
-| VS Code + Copilot | `~/.copilot/` or `code` in PATH | `~/.copilot/skills/` |
-| Cursor | `~/.cursor/` | `~/.cursor/rules/` |
-| Windsurf | `~/.codeium/windsurf/` | `~/.windsurf/rules/` |
-| Gemini CLI | `~/.gemini/` | `~/.gemini/skills/` |
-| Codex CLI | `~/.codex/` | `~/.codex/skills/` |
-| Goose | `~/.config/goose/` | `~/.config/goose/skills/` |
-| OpenCode | `~/.config/opencode/` | `~/.config/opencode/skills/` |
+| Platform | Detection | Install path | SKILL.md native? |
+|----------|-----------|-------------|-----------------|
+| Claude Code | `~/.claude/` | `~/.claude/skills/` | Yes |
+| VS Code + Copilot | `~/.copilot/` or `code` in PATH | `~/.copilot/skills/` | Yes |
+| Cursor | `~/.cursor/` | `~/.cursor/skills/` | Yes (v2.4+) |
+| Windsurf | `~/.codeium/windsurf/` | `~/.windsurf/rules/` + adapter | No — workflow adapter generated |
+| Gemini CLI | `~/.gemini/` | `~/.gemini/skills/` | Yes |
+| Codex CLI | `~/.codex/` | `~/.codex/skills/` | Yes |
+| Goose | `~/.config/goose/` | `~/.config/goose/skills/` | Yes |
+| OpenCode | `~/.config/opencode/` | `~/.config/opencode/skills/` | Yes |
 
 **Project-level** (scoped to current repo):
 
@@ -293,9 +303,9 @@ $ ./na-analytics ppe --commodity soja
 | GitHub Copilot | `.github/` in project | `.github/skills/` |
 | Cursor | `.cursor/` in project | `.cursor/rules/` |
 | Windsurf | `.windsurf/` in project | `.windsurf/rules/` |
-| Cline | `.clinerules/` in project | `.clinerules/` |
+| Cline | `.clinerules/` in project | `.clinerules/` + adapter |
 
-If no platform is detected, defaults to Claude Code. The installer installs to **all** detected platforms simultaneously.
+If no platform is detected, defaults to Claude Code. The installer installs to **all** detected platforms simultaneously, plus the vendor-neutral `~/.agents/skills/` path.
 
 ### Cross-Platform Strategy
 
@@ -331,13 +341,15 @@ cliskill/
 │   └── self-improvement-protocol.md # Self-improvement loops (both layers)
 ├── .cliskill-meta/                    # Build metrics + experiment state (created at runtime)
 ├── mcp/
-│   ├── server.py                      # MCP bridge (optional — requires fastmcp)
+│   ├── server.py                      # MCP bridge (auto-installed with fastmcp)
 │   └── requirements.txt               # FastMCP dependency
 ├── .mcp.json                          # MCP server auto-config for MCP-aware tools
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker + auto-installer
 │   ├── install.sh                  # Shell installer (macOS/Linux)
-│   └── install.ps1                 # PowerShell installer (Windows)
+│   ├── install.ps1                 # PowerShell installer (Windows)
+│   ├── generate_windsurf_adapter.py # Windsurf workflow adapter generator
+│   └── generate_cline_adapter.py    # Cline workflow adapter generator
 ├── APPLICATION_CARD.md
 ├── README.md
 └── LICENSE

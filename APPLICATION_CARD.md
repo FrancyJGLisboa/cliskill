@@ -157,9 +157,11 @@ The installer handles the full onboarding flow:
 2. **Platform detection** — auto-detects AI coding tools at two levels:
    - **User-level** (global): Claude Code, VS Code + Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode
    - **Project-level** (per-repo): GitHub Copilot (`.github/`), Cursor (`.cursor/`), Windsurf (`.windsurf/`), Cline (`.clinerules/`)
+   - **Vendor-neutral**: always installs to `~/.agents/skills/` (the [agentskills.io](https://agentskills.io) open standard path checked by Copilot, Codex, Gemini, OpenCode)
    - Installs to **all** detected platforms simultaneously — a developer using both VS Code and Claude Code gets both.
-3. **Dependency installation** — clones `/clarity` and `/agent-skill-creator` into the primary platform's skill directory, then symlinks to others. No manual setup.
-4. **Cross-OS compatibility** — on Windows, falls back from symlinks to directory junctions (no admin required) to copy as a last resort.
+3. **Dependency installation** — clones `/clarity` and `/agent-skill-creator`, installs `fastmcp` for the MCP bridge. No manual setup.
+4. **Workflow adapters** — generates platform-specific adapters for Windsurf (`.windsurf/workflows/cliskill.md`) and Cline (`.clinerules/workflows/cliskill.md`) which don't support SKILL.md natively.
+5. **Cross-OS compatibility** — on Windows, falls back from symlinks to directory junctions (no admin required) to copy as a last resort.
 
 Clone and run — same pattern as the skills cliskill produces. Dependencies are also auto-installed at runtime via `check_deps.py` if somehow missing after install — defense in depth.
 
@@ -258,6 +260,7 @@ The evolution is concrete:
 | **Intent inference** | No — user must choose the right mode | Yes — auto-detects discover/research/standard from natural language |
 | **Self-improvement** | No — static instructions | Yes — tracks build metrics, proposes improvements, measures and keeps/reverts |
 | **Post-deploy optimization** | No — skill is static | Yes — every skill ships with `_optimize/` eval harness |
+| **Cross-platform delivery** | No — single platform at a time | Yes — SKILL.md native (7 platforms) + workflow adapters (Windsurf, Cline) + MCP bridge (all platforms) |
 
 The critical difference is the last row. agent-skill-creator *can* skip the spec and build directly from raw references. This is fast but fragile — the skill reflects whatever the LLM inferred from the docs, with no structured verification. cliskill forces the spec-first path: clarity extracts, structures, and creates holdout tests *before* the builder ever sees the brief. The builder implements against a verified spec, not against raw inference.
 
@@ -301,6 +304,7 @@ For a cliskill-produced skill, the quality signals are:
 - **Example skill**: [github.com/FrancyJGLisboa/na-analytics](https://github.com/FrancyJGLisboa/na-analytics) — agricultural commodity analytics, built by cliskill discover mode
 - **Dependency — /clarity**: [github.com/FrancyJGLisboa/clarity](https://github.com/FrancyJGLisboa/clarity)
 - **Dependency — /agent-skill-creator**: [github.com/FrancyJGLisboa/agent-skill-creator](https://github.com/FrancyJGLisboa/agent-skill-creator)
+- **Agent Skills open standard**: [agentskills.io](https://agentskills.io) — the SKILL.md specification cliskill follows
 
 ## License
 
