@@ -297,6 +297,29 @@ $ ./na-analytics ppe --commodity soja
 
 If no platform is detected, defaults to Claude Code. The installer installs to **all** detected platforms simultaneously.
 
+### Cross-Platform Strategy
+
+cliskill reaches every platform through three tiers:
+
+| Tier | Mechanism | Platforms |
+|------|-----------|-----------|
+| **SKILL.md native** | Platforms read SKILL.md directly via the [agentskills.io](https://agentskills.io) open standard | Claude Code, Copilot, Cursor, Gemini CLI, Codex CLI, Goose, OpenCode |
+| **Workflow adapters** | Generated during install for platforms with their own format | Windsurf (`.windsurf/workflows/`), Cline (`.clinerules/workflows/`) |
+| **MCP bridge** | FastMCP server exposes pipeline as tools any MCP client can call | All MCP-compatible tools (every platform above + more) |
+
+The vendor-neutral path `~/.agents/skills/cliskill/` is always installed — multiple platforms check it automatically.
+
+### MCP Server (optional)
+
+For platforms that speak MCP, cliskill ships a bridge server:
+
+```bash
+pip install fastmcp
+# The .mcp.json in the repo auto-configures the server for MCP-aware tools
+```
+
+The MCP server exposes 6 tools (`cliskill_vibe`, `cliskill_specify`, `cliskill_build`, `cliskill_verify`, `cliskill_deploy`, `cliskill_self_improve`) and a pipeline prompt. Each tool extracts the relevant SKILL.md section at runtime — SKILL.md stays the source of truth.
+
 ## Architecture
 
 ```
@@ -312,6 +335,10 @@ cliskill/
 │   ├── examples.md                 # Happy path + fix loop examples
 │   └── self-improvement-protocol.md # Self-improvement loops (both layers)
 ├── .cliskill-meta/                    # Build metrics + experiment state (created at runtime)
+├── mcp/
+│   ├── server.py                      # MCP bridge (optional — requires fastmcp)
+│   └── requirements.txt               # FastMCP dependency
+├── .mcp.json                          # MCP server auto-config for MCP-aware tools
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker + auto-installer
 │   ├── install.sh                  # Shell installer (macOS/Linux)

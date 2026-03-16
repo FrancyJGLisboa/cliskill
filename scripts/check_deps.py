@@ -28,7 +28,10 @@ PLATFORMS = [
     ("codex",             os.path.expanduser("~/.codex/skills"),             os.path.expanduser("~/.codex")),
     ("goose",             os.path.expanduser("~/.config/goose/skills"),      os.path.expanduser("~/.config/goose")),
     ("opencode",          os.path.expanduser("~/.config/opencode/skills"),   os.path.expanduser("~/.config/opencode")),
+    # Vendor-neutral
+    ("agents (user)",     os.path.expanduser("~/.agents/skills"),            os.path.expanduser("~/.agents")),
     # Project-level platforms (detected from cwd)
+    ("agents (project)",  os.path.join(".agents", "skills"),                 ".agents"),
     ("copilot (project)", os.path.join(".github", "skills"),                 ".github"),
     ("cursor (project)",  os.path.join(".cursor", "rules"),                  ".cursor"),
     ("windsurf (project)", os.path.join(".windsurf", "rules"),               ".windsurf"),
@@ -158,6 +161,18 @@ def main():
                 print(f"  [failed] Could not auto-install /{skill}")
                 all_ok = False
         print()
+
+    # MCP server availability (informational, not required)
+    print("MCP bridge:")
+    try:
+        import importlib
+        importlib.import_module("fastmcp")
+        print("  [ok] fastmcp installed — MCP bridge available")
+    except ImportError:
+        print("  [info] fastmcp not installed — MCP bridge unavailable")
+        print("         Install with: pip install fastmcp")
+        print("         MCP is optional — SKILL.md works without it")
+    print()
 
     if all_ok:
         print("All dependencies ready.")

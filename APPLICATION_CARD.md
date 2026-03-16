@@ -88,6 +88,16 @@ $ ./na-analytics spread --commodity soja --indicator soja-mercado-fisico-sindica
 
 From PDF course formulas to working CLI analytics — verified, self-installing, cross-platform.
 
+## Cross-Platform Delivery
+
+cliskill reaches every AI coding tool through three tiers:
+
+1. **SKILL.md native** — Claude Code, Copilot, Cursor, Gemini CLI, Codex CLI, Goose, and OpenCode all read SKILL.md via the [agentskills.io](https://agentskills.io) open standard. Install once to `~/.agents/skills/` and it works across platforms.
+
+2. **Workflow adapters** — Windsurf and Cline have their own formats. The installer generates thin adapters (`.windsurf/workflows/cliskill.md`, `.clinerules/workflows/cliskill.md`) that point back to SKILL.md.
+
+3. **MCP bridge** — A FastMCP server (`mcp/server.py`) exposes the pipeline as 6 tools any MCP client can call. Every major platform supports MCP. The server reads SKILL.md at runtime — no logic duplication.
+
 ## Why CLI
 
 CLI is the universal interface for agent tooling. Every major agent platform — Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline — can execute shell commands. No SDK integration, no plugin API, no platform-specific adapter.

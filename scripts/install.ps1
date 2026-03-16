@@ -83,7 +83,13 @@ function Find-Platforms {
         $platforms += "opencode"
     }
 
+    # Vendor-neutral (.agents/skills/) — always install here
+    $platforms += "agents"
+
     # --- Project-level platforms ---
+
+    # Vendor-neutral project-level
+    $platforms += "agents-project"
 
     if (Test-Path ".github" -PathType Container) {
         $platforms += "copilot-project"
@@ -187,6 +193,8 @@ function Install-ToPlatform {
         "codex"            { Join-Path $env:USERPROFILE ".codex" "skills" }
         "goose"            { Join-Path $env:USERPROFILE ".config" "goose" "skills" }
         "opencode"         { Join-Path $env:USERPROFILE ".config" "opencode" "skills" }
+        "agents"           { Join-Path $env:USERPROFILE ".agents" "skills" }
+        "agents-project"   { Join-Path "." ".agents" "skills" }
         "copilot-project"  { Join-Path "." ".github" "skills" }
         "cursor-project"   { Join-Path "." ".cursor" "rules" }
         "windsurf-project" { Join-Path "." ".windsurf" "rules" }
@@ -283,6 +291,22 @@ if (-not $Uninstall -and -not $DryRun) {
     Write-Host "Usage:"
     Write-Host "  /cliskill <references>   -- Build a verified CLI skill from API references"
     Write-Host "  /cliskill resume         -- Resume an interrupted pipeline"
+}
+
+# Generate workflow adapters for platforms that don't support SKILL.md natively
+if (-not $Uninstall -and -not $DryRun) {
+    if ($platforms -contains "windsurf") {
+        Write-Host "Generating Windsurf workflow adapter..."
+        $adapterScript = Join-Path $RepoDir "scripts" "generate_windsurf_adapter.py"
+        try { python3 $adapterScript $RepoDir 2>&1 | Write-Host } catch {}
+        Write-Host ""
+    }
+    if ($platforms -contains "cline-project") {
+        Write-Host "Generating Cline workflow adapter..."
+        $adapterScript = Join-Path $RepoDir "scripts" "generate_cline_adapter.py"
+        try { python3 $adapterScript $RepoDir 2>&1 | Write-Host } catch {}
+        Write-Host ""
+    }
 }
 
 if ($DryRun) {

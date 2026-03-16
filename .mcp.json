@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cliskill": {
+      "command": "python3",
+      "args": ["mcp/server.py"],
+      "transport": "stdio"
+    }
+  }
+}

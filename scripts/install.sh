@@ -84,7 +84,13 @@ detect_platforms() {
         platforms="$platforms opencode"
     fi
 
+    # Vendor-neutral (.agents/skills/) — always install here
+    platforms="$platforms agents"
+
     # --- Project-level platforms (from cwd) ---
+
+    # Vendor-neutral project-level
+    platforms="$platforms agents-project"
 
     # GitHub Copilot (project-level)
     if [ -d ".github" ]; then
@@ -170,6 +176,8 @@ install_to_platform() {
         codex)            base="$HOME/.codex/skills" ;;
         goose)            base="$HOME/.config/goose/skills" ;;
         opencode)         base="$HOME/.config/opencode/skills" ;;
+        agents)           base="$HOME/.agents/skills" ;;
+        agents-project)   base=".agents/skills" ;;
         copilot-project)  base=".github/skills" ;;
         cursor-project)   base=".cursor/rules" ;;
         windsurf-project) base=".windsurf/rules" ;;
@@ -264,6 +272,20 @@ if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
     echo "Usage:"
     echo "  /cliskill <references>   — Build a verified CLI skill from API references"
     echo "  /cliskill resume         — Resume an interrupted pipeline"
+fi
+
+# Generate workflow adapters for platforms that don't support SKILL.md natively
+if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
+    if echo "$platforms" | grep -q "windsurf"; then
+        echo "Generating Windsurf workflow adapter..."
+        python3 "$REPO_DIR/scripts/generate_windsurf_adapter.py" "$REPO_DIR" || true
+        echo ""
+    fi
+    if echo "$platforms" | grep -q "cline"; then
+        echo "Generating Cline workflow adapter..."
+        python3 "$REPO_DIR/scripts/generate_cline_adapter.py" "$REPO_DIR" || true
+        echo ""
+    fi
 fi
 
 if [ "$DRY_RUN" = 1 ]; then
