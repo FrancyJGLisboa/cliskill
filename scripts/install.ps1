@@ -293,6 +293,29 @@ if (-not $Uninstall -and -not $DryRun) {
     Write-Host "  /cliskill resume         -- Resume an interrupted pipeline"
 }
 
+# Install MCP bridge dependency
+if (-not $Uninstall -and -not $DryRun) {
+    $hasFastMcp = python3 -c "import fastmcp" 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  ok: fastmcp (MCP bridge ready)"
+    } else {
+        Write-Host "  Installing fastmcp for MCP bridge..."
+        try {
+            python3 -m pip install --quiet fastmcp 2>&1 | Out-Null
+            Write-Host "  ok: fastmcp installed"
+        } catch {
+            try {
+                pip3 install --quiet fastmcp 2>&1 | Out-Null
+                Write-Host "  ok: fastmcp installed"
+            } catch {
+                Write-Host "  [info] Could not install fastmcp -- MCP bridge unavailable"
+                Write-Host "         Install manually: pip install fastmcp"
+            }
+        }
+    }
+    Write-Host ""
+}
+
 # Generate workflow adapters for platforms that don't support SKILL.md natively
 if (-not $Uninstall -and -not $DryRun) {
     if ($platforms -contains "windsurf") {

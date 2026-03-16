@@ -274,6 +274,20 @@ if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
     echo "  /cliskill resume         — Resume an interrupted pipeline"
 fi
 
+# Install MCP bridge dependency
+if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
+    if python3 -c "import fastmcp" 2>/dev/null; then
+        echo "  ok: fastmcp (MCP bridge ready)"
+    else
+        echo "  Installing fastmcp for MCP bridge..."
+        python3 -m pip install --quiet fastmcp 2>/dev/null || pip3 install --quiet fastmcp 2>/dev/null || {
+            echo "  [info] Could not install fastmcp — MCP bridge unavailable"
+            echo "         Install manually: pip install fastmcp"
+        }
+    fi
+    echo ""
+fi
+
 # Generate workflow adapters for platforms that don't support SKILL.md natively
 if [ "$UNINSTALL" = 0 ] && [ "$DRY_RUN" = 0 ]; then
     if echo "$platforms" | grep -q "windsurf"; then

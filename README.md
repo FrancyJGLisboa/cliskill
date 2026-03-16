@@ -309,14 +309,9 @@ cliskill reaches every platform through three tiers:
 
 The vendor-neutral path `~/.agents/skills/cliskill/` is always installed — multiple platforms check it automatically.
 
-### MCP Server (optional)
+### MCP Server
 
-For platforms that speak MCP, cliskill ships a bridge server:
-
-```bash
-pip install fastmcp
-# The .mcp.json in the repo auto-configures the server for MCP-aware tools
-```
+The installer auto-installs `fastmcp` and configures the MCP bridge. The `.mcp.json` in the repo auto-configures the server for any MCP-aware tool that clones it.
 
 The MCP server exposes 6 tools (`cliskill_vibe`, `cliskill_specify`, `cliskill_build`, `cliskill_verify`, `cliskill_deploy`, `cliskill_self_improve`) and a pipeline prompt. Each tool extracts the relevant SKILL.md section at runtime — SKILL.md stays the source of truth.
 
