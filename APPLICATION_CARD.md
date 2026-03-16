@@ -29,29 +29,27 @@ cd <skill>
 
 No `pip install`, no environment setup, no configuration. Clone and run.
 
+The human's only job: describe what they want and approve 3–5 binary success checks (the **vibe contract**). Everything after is autonomous — review gates auto-approve when the vibe contract is satisfied.
+
 Three entry points, one pipeline:
 
 ```
 1. API docs → CLI skill (standard)
-   Raw API docs (50,000+ tokens)
-       → clarity extracts what matters
-   Verified spec + holdout scenarios
-       → agent-skill-creator builds the CLI
-   Self-bootstrapping skill repo
-       → agent activates in ~500 tokens, user clones and runs
+   "wrap this API" → VIBE (3-5 checks) → SPECIFY → BUILD → VERIFY → DEPLOY
+   Human vibes once. Review gates auto-approve.
 
 2. Repo + knowledge → analytics skill (discover)
-   Repository code + course materials / methodology docs
-       → cross-reference capabilities against methods
-   Ranked feasibility report → user selects
-       → pipeline builds, verifies, and packages the skill
+   "what can I build from these?" → auto-detects discover mode
+   → VIBE → DISCOVER → SPECIFY → BUILD → VERIFY → DEPLOY
+   Intent inference routes the user without subcommand knowledge.
 
 3. Pipeline + metric → optimized model (research)
-   ML pipeline + domain knowledge
-       → negotiate metric, bootstrap eval harness
-   Autonomous optimization loop (PROPOSE → RUN → CLASSIFY → KEEP/REVERT)
-       → convergence detection, guided review, Pareto front
+   "make predictions better" → auto-detects research mode
+   → VIBE → NEGOTIATE → BOOTSTRAP → OPTIMIZE → REVIEW
+   Continuous optimization with experiment classification.
 ```
+
+Every produced skill ships with an `_optimize/` directory — an eval harness so it can self-improve post-deployment without cliskill being involved.
 
 The result is a CLI skill where:
 
@@ -63,6 +61,8 @@ The result is a CLI skill where:
 - The **JSON output** to stdout is structured for agent consumption; errors go to stderr with exit code 1
 
 A 50,000-token API reference becomes a 500-token tool activation. The agent spends its context on reasoning, not on understanding its tools. The user spends zero time on setup.
+
+cliskill also improves itself: it tracks build outcomes (first-pass rate, repair loops, escalation rate) across runs and uses them to refine its own instructions — one experiment at a time, measured over 5 builds, kept or reverted.
 
 ### Example: na-analytics
 
@@ -163,7 +163,15 @@ cliskill is a conductor, not an orchestra. It orchestrates two independent skill
 Neither skill has an evaluation-fix-rebuild loop. cliskill adds that loop — the piece that turns "generate once and hope" into "generate, verify, fix, verify again."
 
 ```
-Human provides references
+Human describes what they want
+         ↓
+    ┌─────────┐
+    │  VIBE   │  ← 3-5 binary checks. Human approves. Only touchpoint.
+    └────┬────┘
+         ↓
+    ┌──────────┐
+    │  DETECT  │  ← Intent inference: discover / research / standard / update
+    └────┬─────┘    (auto-detects from references + natural language)
          ↓
     ┌───────────┐
     │ DISCOVER? │  ← If repo + knowledge: extract capabilities, cross-reference,
@@ -182,19 +190,19 @@ Human provides references
     │ SPECIFY │  ← /clarity (ingest, spec, scenarios, handoff)
     └────┬────┘
          ↓
-   [Review Gate 1]  ← Human approves spec (or update plan)
+   [Vibe Check]   ← Auto-approve if spec covers all vibe checks
          ↓
     ┌─────────┐
-    │  BUILD  │  ← /agent-skill-creator (architecture, detection, implementation)
+    │  BUILD  │  ← /agent-skill-creator + eval harness generation
     └────┬────┘
          ↓
     ┌─────────┐
-    │ VERIFY  │  ← /clarity evaluate (holdout scenarios)
+    │ VERIFY  │  ← /clarity evaluate + baseline capture
     └────┬────┘
          ↓
-     Pass? ──yes──→ [Review Gate 2] → DEPLOY
-         │
-         no
+     Pass? ──yes──→ DEPLOY (auto-approve, log metrics)
+         │              ↓
+         no        {skill}/_optimize/ ready for post-deployment optimization
          ↓
     ┌──────────┐
     │  REPAIR  │  classify failure → fix spec or code → rebuild
@@ -208,7 +216,7 @@ Human provides references
       (back to BUILD, max 3 loops)
 ```
 
-In the standard and discover flows, the human touches the pipeline twice: approving the spec and approving the deployment. In research mode, the human negotiates the metric (NEGOTIATE) and reviews the optimization results (REVIEW). When escalation is needed, cliskill walks the user through each failure interactively — one at a time, with clear options — instead of dumping a diagnostic wall.
+The human vibes once — describes what they want, approves 3–5 binary checks. Everything after is autonomous. Review gates auto-approve when the vibe contract is satisfied. Intent inference routes vibe coders to the right mode without requiring subcommand knowledge. When escalation is needed, cliskill walks the user through each failure interactively — one at a time, with clear options — instead of dumping a diagnostic wall.
 
 ## Relationship to agent-skill-creator
 
@@ -236,6 +244,10 @@ The evolution is concrete:
 | **Self-bootstrapping** | No — user installs deps manually | Yes — produced skills auto-install Python, uv, venv, and deps on first run |
 | **Cross-platform** | No — platform-specific build | Yes — every skill ships with bash + PowerShell wrappers |
 | **Spec-first workflow** | Optional — can skip to build | Mandatory — /clarity produces verified spec before build |
+| **Vibe-first pipeline** | No — user must know what to specify | Yes — 3-5 binary checks from natural language, review gates auto-approve |
+| **Intent inference** | No — user must choose the right mode | Yes — auto-detects discover/research/standard from natural language |
+| **Self-improvement** | No — static instructions | Yes — tracks build metrics, proposes improvements, measures and keeps/reverts |
+| **Post-deploy optimization** | No — skill is static | Yes — every skill ships with `_optimize/` eval harness |
 
 The critical difference is the last row. agent-skill-creator *can* skip the spec and build directly from raw references. This is fast but fragile — the skill reflects whatever the LLM inferred from the docs, with no structured verification. cliskill forces the spec-first path: clarity extracts, structures, and creates holdout tests *before* the builder ever sees the brief. The builder implements against a verified spec, not against raw inference.
 
@@ -259,7 +271,7 @@ Both projects stay independent. agent-skill-creator continues to evolve as the i
 - APIs requiring complex OAuth flows with browser redirects — needs human setup
 - Skills that require persistent state across invocations — CLI is stateless by design
 - Metrics without deterministic evaluation — if you can't write `metric.py`, research mode can't optimize
-- Replacing human judgment on spec review — the review gates exist for a reason
+- Tasks where the vibe can't be expressed as binary checks — if you can't say yes/no, cliskill can't auto-verify
 
 ## Metrics That Matter
 
