@@ -39,6 +39,7 @@ The human provides references and reviews twice. Everything else is autonomous.
 /cliskill update <existing-skill-path> <new-reference-1> [<new-reference-2> ...]
 /cliskill discover <capability-ref-1> [<capability-ref-2> ...] -- <knowledge-ref-1> [<knowledge-ref-2> ...]
 /cliskill research <capability-ref-1> [<capability-ref-2> ...] -- <knowledge-ref-1> [<knowledge-ref-2> ...]
+/cliskill self-improve
 ```
 
 References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions — anything `/clarity` can ingest.
@@ -54,11 +55,19 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill research ./my-ml-pipeline -- ./methodology-paper.pdf "optimize RMSE for yield prediction"
 ```
 
+**Natural language works too.** Users don't need to know the subcommands. cliskill infers the right mode from intent:
+```
+/cliskill ./my-repo ./finance-textbook.pdf "what analytics can I build?"    → detects DISCOVER
+/cliskill ./my-pipeline ./methods-paper.pdf "make predictions better"       → detects RESEARCH
+/cliskill https://api.stripe.com/docs "wrap this API"                       → detects STANDARD
+```
+See "Phase Detection — Step 2: Intent Inference" for classification rules. When the mode is ambiguous, cliskill confirms before proceeding.
+
 The `--` separator in discover mode separates capability sources (repos, code, data) from knowledge sources (courses, textbooks, methodology docs). If omitted, the agent classifies each reference automatically.
 
 ## Core Principles
 
-1. **Two review gates, not more.** The human approves the spec (after SPECIFY) and the deployment (after VERIFY). Everything between is autonomous.
+1. **One human touchpoint: the vibe.** The human describes what they want and approves 3–5 binary success checks. After that, everything is autonomous. Review gates still exist but auto-approve when the vibe contract is satisfied — the human is notified, not blocked.
 2. **Holdout scenarios are sacred. This is a hard constraint, not a guideline.** Never auto-fix a failing holdout test. Never weaken a scenario to make it pass. If the test is wrong, that's a Scenario Gap — escalate to the human. If cliskill ever auto-patches holdout scenarios, the entire verification primitive collapses.
 3. **Three loops maximum.** If the evaluation-fix cycle hasn't converged in 3 iterations, escalate with full diagnostics. Don't spin.
 4. **Fix spec first.** When both spec and implementation gaps exist, fix the spec first — implementation gaps often self-resolve when the spec is corrected.
@@ -80,6 +89,21 @@ cliskill ▸ {PHASE} ▸ {sub-phase}  {detail}
 ### Required Status Lines
 
 Emit these at the indicated points — they are not optional:
+
+**VIBE phase:**
+```
+cliskill ▸ VIBE ▸ starting       Analyzing request...
+cliskill ▸ VIBE ▸ checks         Proposing {N} success checks
+cliskill ▸ VIBE ▸ approved       {N}/{N} checks approved — vibe contract locked
+cliskill ▸ VIBE ▸ done           Proceeding autonomously
+```
+
+**DETECT (intent inference):**
+```
+cliskill ▸ DETECT ▸ intent       Analyzing references and request...
+cliskill ▸ DETECT ▸ intent       Detected: {DISCOVER | RESEARCH | STANDARD} mode
+cliskill ▸ DETECT ▸ confirmed    User confirmed: {mode}
+```
 
 **DISCOVER mode (when applicable):**
 ```
@@ -146,6 +170,19 @@ cliskill ▸ DEPLOY ▸ installed    {platform-name} ✓
 cliskill ▸ DEPLOY ▸ done         Deployed to {platform list}
 ```
 
+**SELF-IMPROVE mode:**
+```
+cliskill ▸ SELF-IMPROVE ▸ starting     Loading build history ({N} builds)
+cliskill ▸ SELF-IMPROVE ▸ metrics      first_pass_rate: {v}, avg_loops: {v}, escalation_rate: {v}
+cliskill ▸ SELF-IMPROVE ▸ metrics      Weakest: {metric name} ({value})
+cliskill ▸ SELF-IMPROVE ▸ experiment   Active experiment E-{NNN}: {status}
+cliskill ▸ SELF-IMPROVE ▸ hypothesis   Target: {file} — {hypothesis summary}
+cliskill ▸ SELF-IMPROVE ▸ review       Presenting proposed change for approval...
+cliskill ▸ SELF-IMPROVE ▸ applied      Change committed: {sha}
+cliskill ▸ SELF-IMPROVE ▸ classify     E-{NNN}: {KEEP | REVERT | INCONCLUSIVE} — {metric}: {before} → {after}
+cliskill ▸ SELF-IMPROVE ▸ done         {summary}
+```
+
 **RESEARCH mode (when applicable):**
 ```
 cliskill ▸ RESEARCH ▸ starting    Research mode — continuous optimization
@@ -184,6 +221,7 @@ Load these on demand when entering the relevant phase:
 | `references/loop-protocol.md` | Entering REPAIR LOOP or processing `/cliskill resume` |
 | `references/research-protocol.md` | Entering RESEARCH mode |
 | `references/examples.md` | When needing pattern reference for any phase |
+| `references/self-improvement-protocol.md` | Entering SELF-IMPROVE mode, or at end of any pipeline run (DEPLOY / terminal escalation) |
 
 ## Dependencies
 
@@ -218,7 +256,9 @@ This model means cliskill works best with agents that have large context windows
 
 ## Phase Detection & Resume
 
-On every invocation, check for existing state:
+On every invocation, first try explicit command matching, then intent inference.
+
+### Step 1: Explicit Command Matching
 
 ```
 if command is "/cliskill discover <refs> [-- <knowledge-refs>]":
@@ -230,6 +270,9 @@ else if command is "/cliskill research <refs> [-- <knowledge-refs>]":
 else if command is "/cliskill update <skill-path> <refs>":
     → enter UPDATE mode (see Phase 0: UPDATE below)
 
+else if command is "/cliskill self-improve":
+    → enter SELF-IMPROVE mode (see Phase S: SELF-IMPROVE below)
+
 else if .cliskill/state.md exists AND command is "/cliskill resume":
     read state.md → determine current phase and loop count
     resume from recorded phase
@@ -237,8 +280,73 @@ else if .cliskill/state.md exists AND command is "/cliskill <refs>":
     warn: "Found existing .cliskill/ state. Resume with /cliskill resume or delete .cliskill/ to start fresh."
     stop
 else:
-    start Phase 1: SPECIFY
+    → go to Step 2: Intent Inference
 ```
+
+### Step 2: Intent Inference
+
+Most users — especially vibe coders — won't type `/cliskill discover` or `/cliskill research`. They'll say things like "I have this repo and a finance textbook, make me something useful" or "optimize my prediction pipeline." The agent must detect the right mode from intent, not syntax.
+
+**Run this classification before defaulting to standard SPECIFY:**
+
+```
+Analyze the user's request + references. Classify intent:
+
+SIGNAL → DISCOVER mode:
+  - Multiple reference types (repo + PDF, code + course material, data + textbook)
+  - Vague or open-ended goal ("what can I do with this", "find useful analytics",
+    "build me something from these", "what's possible")
+  - User doesn't specify what the skill should do — they want cliskill to figure it out
+  - Knowledge source present (course material, textbook, methodology doc)
+    without a clear mapping to a specific skill
+
+SIGNAL → RESEARCH mode:
+  - Continuous metric mentioned or implied ("optimize", "improve", "better predictions",
+    "reduce error", "increase accuracy", "tune", "maximize", "minimize")
+  - Existing pipeline/model that works but could be better
+  - User wants to iterate, not just build once
+  - References include methodology/technique docs for improving something that exists
+
+SIGNAL → STANDARD mode:
+  - Clear, specific goal ("wrap this API", "turn these docs into a CLI tool")
+  - API documentation as primary reference
+  - User knows exactly what the skill should do
+  - References are specifications, not exploratory material
+
+If classified as DISCOVER or RESEARCH, confirm with the user before proceeding:
+```
+
+```
+cliskill ▸ DETECT ▸ intent    Analyzing references and request...
+cliskill ▸ DETECT ▸ intent    Detected: {DISCOVER | RESEARCH} mode
+```
+
+```
+## cliskill — Mode Detection
+
+Based on your request, this looks like a **{discover | research}** scenario:
+
+{1-2 sentence explanation of why}
+
+**Options:**
+1. **{Discover | Research} mode** — {brief description of what will happen}
+2. **Standard mode** — skip discovery, go straight to SPECIFY (you already know what to build)
+3. **Tell me more** — explain the difference
+```
+
+Wait for user response before proceeding.
+
+**Why confirm:** Mode inference can be wrong. A false positive (sending a clear API-wrapping task through DISCOVER) wastes time. A false negative (sending a vague exploratory task through SPECIFY) produces a bad spec. The confirmation is cheap — one question — and prevents costly misrouting.
+
+**Do NOT confirm if the intent is clearly standard.** If the user provides API docs and says "build a CLI for this," skip inference and go to SPECIFY. The confirmation is only for ambiguous cases where DISCOVER or RESEARCH signals are present.
+
+### Step 3: VIBE Phase
+
+After mode is determined (by explicit command or intent inference), **always run Phase V: VIBE first** — unless:
+- Command is `/cliskill resume` (reload existing vibe contract from `.cliskill/vibe-contract.md`)
+- Command is `/cliskill self-improve` (no skill being built, no vibe needed)
+
+VIBE produces the vibe contract, then the pipeline continues into the detected mode (DISCOVER → SPECIFY → BUILD → VERIFY → DEPLOY, etc.). All downstream review gates check against the vibe contract for auto-approval.
 
 ---
 
@@ -494,13 +602,118 @@ Regressions in existing scenarios are classified as Implementation Gaps and prio
 
 ---
 
+## Phase V: VIBE
+
+**Entry:** Runs automatically as the first step of every pipeline invocation (standard, discover, research, update). Not applicable to `/cliskill self-improve` or `/cliskill resume`.
+
+The vibe phase converts the human's raw intent into a **vibe contract** — 3–5 binary (yes/no) checks that define success for the entire pipeline. This is the only point where the human's judgment is required. Everything downstream is measured against these checks.
+
+### Why This Exists
+
+The human is the weakest link in the chain. They can recognize "good" when they see it but struggle to articulate why. Review gates exist because cliskill can't verify "is this what you wanted?" without asking. The vibe contract fixes this — it captures "what you wanted" as binary checks *before* any work begins, so every downstream gate can self-verify.
+
+### Instructions
+
+1. **Analyze the request.** Read the user's message, references, and inferred mode. Understand what they're trying to achieve — not what they literally said, but what success looks like.
+
+```
+cliskill ▸ VIBE ▸ starting       Analyzing request...
+```
+
+2. **Propose 3–5 binary checks.** Each check must be:
+   - **Yes/no answerable** — no scales, no "partially"
+   - **Verifiable from the output** — an agent can check it without the human
+   - **Meaningful** — failing this check means the skill is wrong, not just imperfect
+
+Present to the user:
+
+```
+## cliskill — Vibe Contract
+
+Before I build anything, let's lock in what success looks like.
+
+Based on your request, here's what I'd measure:
+
+1. ☐ {check 1 — e.g., "Skill has a command for each API endpoint in the docs"}
+2. ☐ {check 2 — e.g., "All commands return structured JSON, not plain text"}
+3. ☐ {check 3 — e.g., "Error responses include the HTTP status code and API error message"}
+4. ☐ {check 4 — e.g., "Works without network access using cached/mocked responses"}
+
+Thumbs up, or veto any that are wrong?
+```
+
+3. **Wait for response.** The human's job is minimal:
+   - 👍 or "go" — accept all checks
+   - Veto specific checks — "not 4, I need live API access"
+   - Add one — "also: must handle pagination"
+
+4. **Lock the vibe contract.** Write to `.cliskill/vibe-contract.md`:
+
+```markdown
+# Vibe Contract
+
+locked: {ISO 8601}
+mode: {standard | discover | research | update}
+source: {user's original request, abbreviated}
+
+## Checks
+
+1. [description] — status: pending
+2. [description] — status: pending
+3. [description] — status: pending
+```
+
+```
+cliskill ▸ VIBE ▸ approved       {N}/{N} checks approved — vibe contract locked
+cliskill ▸ VIBE ▸ done           Proceeding autonomously
+```
+
+5. **Proceed to the next phase** (DISCOVER, RESEARCH, SPECIFY, or UPDATE depending on mode detection).
+
+### How the Vibe Contract Replaces Review Gates
+
+**Review Gate 1 (spec approval):** After SPECIFY completes, cliskill checks each vibe contract item against the generated spec:
+
+- Can every check be verified by at least one holdout scenario?
+- Does the spec contain requirements that support every check?
+
+If all checks are satisfied → **auto-approve**, notify the user:
+```
+cliskill ▸ SPECIFY ▸ vibe-check   Checking spec against vibe contract...
+cliskill ▸ SPECIFY ▸ vibe-check   ✓ All {N} vibe checks covered by spec
+cliskill ▸ SPECIFY ▸ auto-approve Proceeding to BUILD (vibe contract satisfied)
+```
+
+If any check is NOT covered → **stop and present the gap**:
+```
+cliskill ▸ SPECIFY ▸ vibe-check   ✗ Check {N} not covered: "{description}"
+```
+Then present the gap to the user with options to adjust the spec or revise the check.
+
+**Review Gate 2 (deployment approval):** After VERIFY passes all scenarios, the gate auto-approves:
+```
+cliskill ▸ DEPLOY ▸ vibe-check    All scenarios passed + vibe contract satisfied
+cliskill ▸ DEPLOY ▸ auto-approve  Deploying (vibe contract satisfied)
+```
+
+The user is notified but not blocked. If they want to stop deployment, they can — but the default is go.
+
+### Vibe Contract Invariants
+
+- The contract is **write-once**. Once locked, checks cannot be added, removed, or weakened. If the vibe was wrong, the user starts a new pipeline.
+- The contract is **the source of truth** for auto-approval. No other signal overrides it.
+- The contract lives in `.cliskill/vibe-contract.md` alongside pipeline state.
+- For `/cliskill resume`, the existing contract is reloaded — never re-negotiated.
+
+---
+
 ## Phase 1: SPECIFY
 
 **Delegate to:** `/clarity` (phases 1–4: INGEST, SPECIFY, SCENARIO, HANDOFF)
 
 ### Instructions
 
-1. Pass all user-provided references to `/clarity`.
+1. Pass all user-provided references to `/clarity`, along with the vibe contract from `.cliskill/vibe-contract.md` so that clarity can ensure the spec covers the success checks.
 2. Let clarity run its full pipeline through HANDOFF:
    - **INGEST**: Consume references → `.clarity/context.md`
    - **SPECIFY**: Generate structured spec → `.clarity/spec.md`
@@ -515,27 +728,44 @@ Regressions in existing scenarios are classified as Implementation Gaps and prio
      started: {ISO timestamp}
    ```
 
-### REVIEW GATE 1: Specification Review
+### REVIEW GATE 1: Specification Review (conditional)
 
-Present to the user:
+**First, check the vibe contract.** For each check in `.cliskill/vibe-contract.md`, verify:
+- At least one requirement in the spec supports this check
+- At least one holdout scenario tests this check
 
 ```
-## cliskill — Specification Review
+cliskill ▸ SPECIFY ▸ vibe-check   Checking spec against vibe contract...
+```
 
-Clarity has produced:
-- **Spec**: .clarity/spec.md ({N} requirements)
-- **Scenarios**: {N} holdout scenarios in scenarios/
-- **Skill Brief**: .clarity/skill-brief.md
+**If ALL vibe checks are covered → auto-approve:**
 
-Please review the spec and skill brief.
+```
+cliskill ▸ SPECIFY ▸ vibe-check   ✓ All {N} vibe checks covered by spec
+cliskill ▸ SPECIFY ▸ auto-approve Proceeding to BUILD — spec: {N} requirements, {N} scenarios
+```
+
+Update each check's status to `covered` in `vibe-contract.md`. Proceed directly to BUILD. The user is notified but not blocked.
+
+**If ANY vibe check is NOT covered → stop and present:**
+
+```
+## cliskill — Spec vs. Vibe Gap
+
+Clarity produced {N} requirements and {N} scenarios, but {M} vibe check(s) aren't covered:
+
+✗ Check {N}: "{description}"
+  Missing: {no requirement addresses this | no scenario tests this}
+
+✓ Check {N}: "{description}" — covered by FR-{NNN}, SC-{NNN}
 
 **Options:**
-1. **Approve** — proceed to BUILD
-2. **Redirect** — significant changes needed (re-run SPECIFY with guidance)
-3. **Adjust** — minor tweaks (edit spec directly, then approve)
+1. **Fix spec** — add requirements to cover the gap (re-run SPECIFY with guidance)
+2. **Drop the check** — remove it from the vibe contract (the vibe was wrong)
+3. **Review manually** — show me the full spec, I'll decide
 ```
 
-Wait for user response. Do not proceed until explicitly approved.
+Wait for user response. This is the only case where Review Gate 1 blocks.
 
 On approval, update state:
 ```
@@ -560,7 +790,18 @@ On approval, update state:
    - It runs Phase 3 (Architecture), Phase 4 (Detection), Phase 5 (Implementation).
 4. Agent-skill-creator's built-in validation must pass (SKILL.md structure, security scan).
 5. If validation fails, treat as an implementation issue and let agent-skill-creator fix it (this is within its own pipeline, not cliskill's loop).
-6. Update state:
+6. **Generate eval harness.** After the skill build completes successfully:
+   - Generate `{skill-dir}/_optimize/eval.py` from the holdout scenarios — a script that runs each scenario programmatically and outputs `{"pass_rate": N, "quality_score": null, "scenarios": {...}}`.
+   - Generate `{skill-dir}/_optimize/program.md` from the template in `references/self-improvement-protocol.md` §3, filled with skill-specific details (name, editable files, strategy classes).
+   - See `references/self-improvement-protocol.md` §3 for format details.
+
+```
+cliskill ▸ BUILD ▸ eval-harness   Generating _optimize/eval.py from {N} scenarios...
+cliskill ▸ BUILD ▸ eval-harness   Generating _optimize/program.md...
+cliskill ▸ BUILD ▸ eval-harness   Done — eval harness ready
+```
+
+7. Update state:
    ```
    .cliskill/state.md:
      phase: VERIFY
@@ -586,6 +827,14 @@ When loop_count > 0, append rebuild context to the skill brief before passing to
 4. Parse the evaluation report:
 
 **If ALL scenarios PASS:**
+- **Establish optimization baseline.** Run `{skill-dir}/_optimize/eval.py`, write results to `{skill-dir}/_optimize/baseline.md`, and initialize `{skill-dir}/_optimize/results.tsv` with a baseline row. See `references/self-improvement-protocol.md` §3 for formats.
+
+```
+cliskill ▸ VERIFY ▸ baseline      Running eval.py for optimization baseline...
+cliskill ▸ VERIFY ▸ baseline      pass_rate: {v}, quality_score: {v}
+cliskill ▸ VERIFY ▸ baseline      Baseline written to _optimize/baseline.md
+```
+
 - Update state:
   ```
   .cliskill/state.md:
@@ -746,32 +995,40 @@ cliskill ▸ ESCALATE ▸ done       {N} resolved — {next step}
 
 ## Phase 4: DEPLOY
 
-### REVIEW GATE 2: Deployment Review
+### REVIEW GATE 2: Deployment Review (auto-approve)
 
-Present to the user:
+All scenarios passed. The vibe contract is satisfied. Auto-approve and deploy.
 
 ```
-## cliskill — Deployment Review
-
-Skill verified against {N} holdout scenarios. All passed.
-{If loops > 0: "Required {N} repair loop(s) to reach convergence."}
-
-**Built skill:** {skill-name}
-**Location:** {skill directory path}
-
-**Options:**
-1. **Deploy** — install to detected platforms
-2. **Review first** — examine the skill before deploying
-3. **Skip deployment** — keep the skill local, don't install
+cliskill ▸ DEPLOY ▸ vibe-check    All scenarios passed + vibe contract satisfied
+cliskill ▸ DEPLOY ▸ auto-approve  Deploying to detected platforms
 ```
 
-Wait for user response.
+Notify the user (non-blocking):
+
+```
+## cliskill — Deploying
+
+✓ {N}/{N} holdout scenarios passed {loop info if applicable}
+✓ Vibe contract satisfied ({N}/{N} checks)
+
+Deploying {skill-name} to {platform list}...
+```
+
+The user can still intervene — if they say "wait" or "stop" before deployment completes, abort. But the default is go. The human approved the vibe; the machine verified the rest.
 
 ### On Deploy
 
-1. Use agent-skill-creator's auto-install to deploy the skill to all detected platforms.
-2. Offer team sharing options (git remote, registry).
-3. Update state:
+1. **Log build metrics.** Load `references/self-improvement-protocol.md`. Append a row to `~/acc/cliskill/.cliskill-meta/results.tsv` with this build's outcome (date, skill_name, mode, scenario_count, loop_count, first_pass, escalated, escalation_reason, notes). Create the file with header if it doesn't exist. See §2 of the protocol for field definitions.
+
+```
+cliskill ▸ DEPLOY ▸ metrics       Logging build outcome to .cliskill-meta/results.tsv
+cliskill ▸ DEPLOY ▸ metrics       Build #{N}: {first_pass | loops: N | escalated}
+```
+
+2. Use agent-skill-creator's auto-install to deploy the skill to all detected platforms.
+3. Offer team sharing options (git remote, registry).
+4. Update state:
    ```
    .cliskill/state.md:
      phase: COMPLETE
@@ -789,12 +1046,95 @@ Wait for user response.
 ✓ Built: {skill-name} ({N} files)
 ✓ Verified: {N}/{N} scenarios passed {loop info if applicable}
 ✓ Deployed to: {platform list}
+✓ Optimization: _optimize/ ready (baseline pass_rate: {v})
 
 Artifacts:
   .clarity/           — spec, context, skill brief, evaluations
   .cliskill/          — pipeline state and loop history
   scenarios/          — holdout scenarios
   {skill-directory}/  — the deployed skill
+  {skill-directory}/_optimize/  — eval harness for post-deployment optimization
+```
+
+---
+
+## Phase S: SELF-IMPROVE
+
+**Entry:** `/cliskill self-improve`
+
+**Load:** `references/self-improvement-protocol.md`
+
+Self-improve mode reads cliskill's accumulated build metrics and proposes changes to cliskill's own instructions to improve build efficiency. It does not build a skill — it improves the tool that builds skills.
+
+### Prerequisites
+
+- `~/acc/cliskill/.cliskill-meta/results.tsv` must exist with at least 5 rows.
+- No active experiment (`.cliskill-meta/current-experiment.md` must be empty or absent).
+
+If prerequisites aren't met:
+
+```
+cliskill ▸ SELF-IMPROVE ▸ blocked    Need {5 - N} more builds before self-improvement can run
+```
+
+### Instructions
+
+1. **Read metrics.** Load `results.tsv`, compute `first_pass_rate`, `avg_repair_loops`, `escalation_rate`.
+
+```
+cliskill ▸ SELF-IMPROVE ▸ starting     Loading build history ({N} builds)
+cliskill ▸ SELF-IMPROVE ▸ metrics      first_pass_rate: {v}, avg_loops: {v}, escalation_rate: {v}
+```
+
+2. **Check for active experiment.** If `current-experiment.md` exists:
+   - If builds_since >= 5: classify the experiment (KEEP/REVERT/DESTRUCTIVE), record in `experiments.tsv`, clear `current-experiment.md`.
+   - If builds_since < 5: report status and stop.
+
+```
+cliskill ▸ SELF-IMPROVE ▸ experiment   Active experiment E-{NNN}: {classifying... | waiting, {N} more builds needed}
+cliskill ▸ SELF-IMPROVE ▸ classify     E-{NNN}: {KEEP | REVERT | INCONCLUSIVE} — {metric}: {before} → {after}
+```
+
+3. **Identify weakest metric.** Follow the decision tree in `self-improvement-protocol.md` §2.
+
+```
+cliskill ▸ SELF-IMPROVE ▸ metrics      Weakest: {metric name} ({value})
+```
+
+4. **Hypothesize change.** Read the target file, identify a specific, targeted improvement. Write the hypothesis to `current-experiment.md`.
+
+5. **Present to user.**
+
+```
+## cliskill — Self-Improvement Proposal
+
+### Current Metrics (over {N} builds)
+
+| Metric | Value | Threshold | Status |
+|--------|-------|-----------|--------|
+| first_pass_rate | {v} | > 0.6 | {✓ / ✗} |
+| avg_repair_loops | {v} | < 1.5 | {✓ / ✗} |
+| escalation_rate | {v} | < 0.3 | {✓ / ✗} |
+
+### Weakest Metric: {name}
+
+**Hypothesis:** {what we think will improve it}
+**Target file:** {path}
+**Proposed change:** {description of the edit}
+
+**Options:**
+1. **Approve** — apply the change, measure over next 5 builds
+2. **Modify** — adjust the hypothesis before applying
+3. **Skip** — no changes right now
+```
+
+Wait for user response.
+
+6. **On approval:** Apply the change, commit with message `self-improve: {hypothesis summary}`, update `current-experiment.md` with the commit SHA.
+
+```
+cliskill ▸ SELF-IMPROVE ▸ applied      Change committed: {sha}
+cliskill ▸ SELF-IMPROVE ▸ done         Experiment E-{NNN} active — will classify after 5 builds
 ```
 
 ---
@@ -817,6 +1157,7 @@ Artifacts:
 ```
 .cliskill/
 ├── state.md              # Current phase, loop count, status, mode
+├── vibe-contract.md      # Success checks locked during VIBE phase
 ├── discovery/            # Only present in discover mode
 │   ├── capabilities.md   # Phase D1: repo inventory (with file:line evidence)
 │   ├── knowledge.md      # Phase D2: methods from knowledge sources
@@ -831,6 +1172,28 @@ Artifacts:
 │   └── ...
 └── loop-3/
     └── ...
+```
+
+### cliskill Self-Improvement State (persistent, across builds)
+
+```
+~/acc/cliskill/.cliskill-meta/
+├── results.tsv              # Build outcomes — append-only, one row per build
+├── experiments.tsv           # Self-improvement experiment log — append-only
+├── current-experiment.md     # Active experiment details (empty if none)
+└── metrics-snapshot.md       # Last computed aggregate metrics
+```
+
+### Per-Skill Optimization Harness (generated during BUILD)
+
+```
+{skill-name}/
+├── ...                       # Existing skill files
+└── _optimize/
+    ├── program.md            # Autoresearch instructions for this skill
+    ├── eval.py               # Evaluation harness (READ-ONLY post-deployment)
+    ├── baseline.md           # Initial build scores (written during VERIFY)
+    └── results.tsv           # Experiment log (initialized during DEPLOY)
 ```
 
 All loop artifacts are preserved for debugging. Never delete previous loop data during a run.

@@ -11,14 +11,15 @@ Rules for the cliskill repair loop: state tracking, convergence detection, parti
 ```markdown
 # cliskill Pipeline State
 
-phase: {SPECIFY | BUILD | VERIFY | DEPLOY | COMPLETE}
-status: {in_progress | pending_review | escalated_scenario_gap | escalated_no_convergence | escalated_max_loops | deployed}
+phase: {VIBE | SPECIFY | BUILD | VERIFY | DEPLOY | COMPLETE}
+status: {in_progress | pending_review | auto_approved | escalated_scenario_gap | escalated_no_convergence | escalated_max_loops | deployed}
 loop_count: {0-3}
 started: {ISO 8601 timestamp}
 last_updated: {ISO 8601 timestamp}
 last_failure_ids: [{comma-separated SC-NNN IDs, empty if none}]
 skill_name: {name of the skill being built, once known}
 references: [{original reference paths/URLs}]
+vibe_contract: .cliskill/vibe-contract.md
 ```
 
 ### `.cliskill/` Directory Structure
@@ -108,7 +109,9 @@ When `/cliskill resume` is invoked:
 | State | Resume Action |
 |-------|---------------|
 | `phase: SPECIFY, status: in_progress` | Continue clarity pipeline |
-| `phase: SPECIFY, status: pending_review` | Re-present spec for review |
+| `phase: VIBE, status: pending_review` | Re-present vibe contract for approval |
+| `phase: SPECIFY, status: pending_review` | Re-present spec for review (vibe gap detected) |
+| `phase: SPECIFY, status: auto_approved` | Spec auto-approved — continue to BUILD |
 | `phase: BUILD, status: in_progress` | Re-run build from skill brief |
 | `phase: VERIFY, status: in_progress` | Re-run evaluation |
 | `phase: DEPLOY, status: pending_review` | Re-present deployment review |

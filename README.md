@@ -11,12 +11,13 @@ cliskill turns any reference material — API docs, repositories, PDFs, course m
 A framework for generating self-installing, cross-platform, agent-friendly CLI skills from any reference material. The produced skills are git repos that work on any OS (`./skill` on macOS/Linux, `.\skill.ps1` on Windows) and any agent tool (Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline).
 
 ```
-API References → SPECIFY → [Review] → BUILD → VERIFY → DEPLOY
-                                         ↑        ↓
-                                         ← REPAIR ←
+References → VIBE → SPECIFY → BUILD → VERIFY → DEPLOY
+              ↑                  ↑        ↓
+         (human here)            ← REPAIR ←
+         (only here)
 ```
 
-The human provides references and reviews twice. Everything between is autonomous.
+The human describes what they want and approves 3–5 binary success checks. Everything after is autonomous — review gates auto-approve when the vibe contract is satisfied.
 
 ## Install
 
@@ -74,7 +75,7 @@ python scripts/check_deps.py       # Windows
 /cliskill <reference-1> [<reference-2> ...]
 ```
 
-References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions.
+References can be: API documentation, repository URLs, file paths, PDFs, URLs, or free-text descriptions. You don't need to know the subcommands — cliskill infers the right mode from your intent.
 
 **Examples:**
 
@@ -82,6 +83,8 @@ References can be: API documentation, repository URLs, file paths, PDFs, URLs, o
 /cliskill https://api.example.com/docs https://github.com/example/weather-api
 /cliskill ./specs/finnhub-api-reference.pdf
 /cliskill https://developers.notion.com/reference "bidirectional sync to markdown"
+/cliskill ./my-repo ./textbook.pdf "what can I build from these?"           # auto-detects discover
+/cliskill ./my-pipeline ./methods.pdf "improve prediction accuracy"          # auto-detects research
 ```
 
 ### Update an existing skill
@@ -135,6 +138,14 @@ When you have a model or pipeline and want to optimize a continuous metric (RMSE
 
 Research mode combines discovery (what can this code do?) with metric negotiation (what does "better" mean?) and runs an autonomous optimization loop — proposing changes, evaluating them, classifying failures, and keeping or reverting. It brings cliskill's rigor (failure classification, convergence detection, guided escalation) to the autoresearch pattern of continuous improvement.
 
+### Improve cliskill itself
+
+After enough builds, let cliskill analyze its own performance and propose improvements:
+
+```
+/cliskill self-improve
+```
+
 ### Resume an interrupted pipeline
 
 ```
@@ -143,11 +154,15 @@ Research mode combines discovery (what can this code do?) with metric negotiatio
 
 ## How It Works
 
+### Phase V: VIBE
+
+Before anything else, cliskill converts your request into 3–5 binary success checks — the **vibe contract**. You approve them (thumbs up/down, that's it). This is your only required touchpoint. Everything downstream auto-verifies against these checks.
+
 ### Phase 1: SPECIFY
 
 Delegates to `/clarity` (INGEST → SPECIFY → SCENARIO → HANDOFF). Produces a structured spec, holdout scenarios, and a skill brief.
 
-**Review Gate:** You review and approve the spec before building.
+**Review Gate:** Auto-approves if the spec covers all vibe checks. Only stops if there's a gap between the spec and what you asked for.
 
 ### Phase 2: BUILD
 
@@ -208,11 +223,26 @@ The loop runs until convergence stalls across multiple strategy classes, then es
 
 When the API changes, `cliskill update` avoids starting from scratch. It diffs the new references against the existing spec, shows you what's new/changed/deprecated, and only re-specs the delta. All existing scenarios are re-run to catch regressions.
 
+### Self-Improvement
+
+cliskill tracks its own build outcomes — first-pass success rate, average repair loops, escalation rate — in `.cliskill-meta/results.tsv`. After every 5th build (or via `/cliskill self-improve`), it reads its metrics, identifies the weakest, and proposes a targeted change to its own instructions. Changes are git-committed, measured over the next 5 builds, and kept or reverted based on results. One experiment at a time. No stacking.
+
+### Skills Ship Ready to Self-Optimize
+
+Every skill cliskill produces includes an `_optimize/` directory with:
+
+- **eval.py** — evaluation harness generated from holdout scenarios (read-only post-deployment)
+- **program.md** — autoresearch-style optimization instructions tailored to the skill
+- **baseline.md** — initial scores captured during verification
+- **results.tsv** — experiment log for tracking optimization history
+
+This means any agent can pick up a deployed skill and run the autoresearch loop (PROPOSE → RUN → CLASSIFY → KEEP/REVERT) to improve it post-deployment — without cliskill being involved. The eval harness is fixed; only the skill code changes.
+
 ### Phase 4: DEPLOY
 
-**Review Gate:** You approve deployment after all scenarios pass.
+**Review Gate:** Auto-approves — all scenarios passed, vibe contract satisfied. You're notified but not blocked.
 
-Installs the skill to all detected platforms.
+Installs the skill to all detected platforms, logs build metrics.
 
 ## What Makes the Output "Agent-Friendly"
 
@@ -279,7 +309,9 @@ cliskill/
 │   ├── evaluation-router.md        # Failure classification + routing
 │   ├── loop-protocol.md            # State tracking + convergence rules
 │   ├── research-protocol.md        # Continuous optimization loops
-│   └── examples.md                 # Happy path + fix loop examples
+│   ├── examples.md                 # Happy path + fix loop examples
+│   └── self-improvement-protocol.md # Self-improvement loops (both layers)
+├── .cliskill-meta/                    # Build metrics + experiment state (created at runtime)
 ├── scripts/
 │   ├── check_deps.py               # Dependency checker + auto-installer
 │   ├── install.sh                  # Shell installer (macOS/Linux)
@@ -296,6 +328,7 @@ Runtime artifacts (created during a cliskill run):
 .clarity/                           # Spec, context, skill brief, evaluations
 scenarios/                          # Holdout scenarios
 {skill-name}/                       # The built skill
+{skill-name}/_optimize/             # Eval harness for post-deployment optimization
 ```
 
 ## License

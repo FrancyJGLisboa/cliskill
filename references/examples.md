@@ -958,3 +958,195 @@ The agents know from the SKILL.md:
 - **When to use it:** user asks about portfolio risk, returns, or optimization
 - **When not to:** single-stock technical analysis, real-time trading signals, tax calculations
 - **How to fail:** "Insufficient price history for GARCH — need 250+ trading days, have {N}"
+
+---
+
+## Example 7: Post-Deployment Skill Optimization
+
+**Context:** The portfolio-analytics-skill from Example 6 has been deployed for two weeks. An agent (or the user) decides to optimize it using the `_optimize/` harness that shipped with the skill.
+
+### Starting Point
+
+The agent reads `portfolio-analytics-skill/_optimize/program.md` and `_optimize/baseline.md`:
+
+```markdown
+# Baseline
+pass_rate: 0.87
+quality_score: null
+Per-scenario: SC-001 pass, SC-002 pass, ..., SC-007 fail (edge: negative returns), SC-014 fail (edge: single-day history)
+```
+
+### Optimization Loop
+
+The agent follows the autoresearch pattern defined in `program.md`:
+
+**Experiment 1 — Error handling (strategy class)**
+
+```
+Hypothesis: Add input validation for minimum data length before running analytics
+Change: Added check in analytics.py — require >= 2 data points for returns, >= 250 for GARCH
+Result: pass_rate 0.87 → 0.93 (SC-014 now passes)
+Status: KEEP
+```
+
+`_optimize/results.tsv` after experiment 1:
+```
+commit       pass_rate  quality_score  strategy_class   status    description
+a1b2c3d      0.87       null           baseline         baseline  Initial build
+e4f5g6h      0.93       null           error_handling   keep      Min data length validation
+```
+
+**Experiment 2 — Error handling**
+
+```
+Hypothesis: Handle negative price sequences gracefully in returns calculation
+Change: Added abs() guard and warning in calculate_returns() for negative close prices
+Result: pass_rate 0.93 → 0.93 (SC-007 still fails — root cause is different)
+Status: REVERT (no improvement)
+```
+
+**Experiment 3 — Output formatting**
+
+```
+Hypothesis: SC-007 expects a specific error message format for negative returns
+Change: Updated error response to include period and expected range
+Result: pass_rate 0.93 → 1.0 (SC-007 now passes)
+Status: KEEP
+```
+
+**Experiment 4 — Prompt refinement**
+
+```
+Hypothesis: Improve SKILL.md trigger descriptions to reduce agent misuse
+Change: Added explicit anti-goal for single-stock technical analysis
+Result: pass_rate 1.0 → 1.0 (no regression, neutral)
+Status: REVERT (neutral — no measurable improvement)
+```
+
+### Final State
+
+`_optimize/results.tsv`:
+```
+commit       pass_rate  quality_score  strategy_class    status    description
+a1b2c3d      0.87       null           baseline          baseline  Initial build
+e4f5g6h      0.93       null           error_handling    keep      Min data length validation
+i7j8k9l      0.93       null           error_handling    revert    Negative price guard (no effect)
+m0n1o2p      1.0        null           output_formatting keep      Error message format for SC-007
+q3r4s5t      1.0        null           prompt_refinement revert    Anti-goal addition (neutral)
+```
+
+The skill went from 0.87 to 1.0 pass_rate in 4 experiments. The `_optimize/` directory preserves the full history. The eval.py was never modified — only the skill code changed.
+
+---
+
+## Example 8: `/cliskill self-improve`
+
+**Context:** After 7 builds (weather-api, portfolio-tracker, notion-sync, na-analytics, image-resize, pdf-merge, calendar-sync), the user runs self-improvement.
+
+```
+/cliskill self-improve
+```
+
+### Step 1: Read Metrics
+
+```
+cliskill ▸ SELF-IMPROVE ▸ starting     Loading build history (7 builds)
+cliskill ▸ SELF-IMPROVE ▸ metrics      first_pass_rate: 0.29, avg_loops: 1.43, escalation_rate: 0.14
+cliskill ▸ SELF-IMPROVE ▸ metrics      Weakest: first_pass_rate (0.29)
+```
+
+`~/.cliskill-meta/results.tsv`:
+```
+date        skill_name          mode      scenarios  loops  first_pass  escalated  reason  notes
+2026-03-01  weather-api         standard  8          0      true        false              clean pass
+2026-03-03  portfolio-tracker   standard  10         1      false       false              returns formula wrong
+2026-03-05  notion-sync         standard  12         2      false       false              2 spec gaps
+2026-03-07  na-analytics        discover  15         1      false       false              VaR tail calc
+2026-03-09  image-resize        standard  6          2      false       false              format detection
+2026-03-11  pdf-merge           standard  5          2      false       false              page ordering
+2026-03-13  calendar-sync       standard  9          2      false       true       max_loops  OAuth flow
+```
+
+Only 2 out of 7 builds passed on the first try → `first_pass_rate = 0.29`.
+
+### Step 2: Decision Tree
+
+`first_pass_rate < 0.6` → Target: `SKILL.md` (BUILD instructions).
+
+The agent reads SKILL.md's BUILD phase and the failing builds' notes. Pattern: most first-VERIFY failures involve the spec being clear but the builder missing edge cases (format detection, page ordering, tail calculations). These are behaviors the spec described but `/agent-skill-creator` didn't implement correctly on the first pass.
+
+### Step 3: Hypothesis
+
+```
+cliskill ▸ SELF-IMPROVE ▸ hypothesis   Target: SKILL.md — add explicit edge-case checklist to skill brief
+```
+
+**Hypothesis:** The skill brief passed to `/agent-skill-creator` doesn't highlight edge cases prominently enough. Add a "## Critical Edge Cases" section to the rebuild context template that extracts edge-case scenarios from the holdout set and lists them as explicit implementation requirements — not just test cases the builder will never see, but behavioral requirements derived from the scenarios without revealing the test details.
+
+### Step 4: Present to User
+
+```
+cliskill — Self-Improvement Proposal
+
+Current Metrics (over 7 builds)
+
+| Metric | Value | Threshold | Status |
+|--------|-------|-----------|--------|
+| first_pass_rate | 0.29 | > 0.6 | ✗ |
+| avg_repair_loops | 1.43 | < 1.5 | ✓ |
+| escalation_rate | 0.14 | < 0.3 | ✓ |
+
+Weakest Metric: first_pass_rate
+
+Hypothesis: Add "Critical Edge Cases" section to skill brief generation.
+When producing the skill brief in SPECIFY, extract edge-case patterns from
+the holdout scenarios (without revealing test details) and include them as
+explicit behavioral requirements in the brief.
+
+Target file: SKILL.md (Phase 2: BUILD instructions)
+
+Proposed change: After step 1 ("Read .clarity/skill-brief.md"), add step 1b:
+"Extract edge-case patterns from scenarios/ — identify boundary conditions,
+error states, and format variations. Append a '## Critical Edge Cases'
+section to the skill brief listing these as implementation requirements."
+
+Options:
+1. Approve — apply the change, measure over next 5 builds
+2. Modify — adjust the hypothesis
+3. Skip — no changes right now
+```
+
+User approves.
+
+### Step 5: Apply
+
+```
+cliskill ▸ SELF-IMPROVE ▸ applied      Change committed: f8a9b0c
+cliskill ▸ SELF-IMPROVE ▸ done         Experiment E-001 active — will classify after 5 builds
+```
+
+`.cliskill-meta/current-experiment.md`:
+```markdown
+# Current Experiment
+
+experiment_id: E-001
+started: 2026-03-14
+target_file: SKILL.md
+target_metric: first_pass_rate
+hypothesis: Add Critical Edge Cases section to skill brief
+change_summary: Added step 1b to BUILD phase — extract edge-case patterns from scenarios
+commit_sha: f8a9b0c
+builds_since: 0
+snapshot_before:
+  first_pass_rate: 0.29
+  avg_repair_loops: 1.43
+  escalation_rate: 0.14
+```
+
+### What Happens Next
+
+Over the next 5 builds, cliskill operates normally. Each build appends a row to `results.tsv`. After the 5th build, the next `/cliskill self-improve` (or the automatic trigger) computes new metrics and classifies E-001:
+
+- If `first_pass_rate` improved (e.g., 0.29 → 0.60): **KEEP**
+- If `first_pass_rate` didn't improve or any metric got >10% worse: **REVERT** (git revert f8a9b0c)
+- If only 3 builds have happened: **INCONCLUSIVE** — wait for 2 more
