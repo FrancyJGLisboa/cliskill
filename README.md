@@ -419,6 +419,25 @@ scenarios/                          # Holdout scenarios
 {skill-name}/_optimize/             # Eval harness for post-deployment optimization
 ```
 
+## How cliskill Compares to CLI-Anything
+
+[CLI-Anything](https://github.com/HKUDS/CLI-Anything) (16k+ stars) wraps GUI apps (GIMP, Blender, Audacity) as CLI tools for agents. Same goal — make software agent-controllable — different architecture.
+
+CLI-Anything is an **open-loop prompt template**: Claude Code follows a HARNESS.md, generates a CLI wrapper, writes its own tests, ships. cliskill is a **closed-loop factory**: builder never sees the holdout tests, failures are classified and auto-fixed, skills self-improve post-deployment.
+
+The gap matters: CLI-Anything's [Issue #16](https://github.com/HKUDS/CLI-Anything/issues/16) shows 42 passing tests on a completely mocked CLI (it simulated operations without calling the real software). This can't happen in cliskill — the builder doesn't write the tests.
+
+| | CLI-Anything | cliskill |
+|---|---|---|
+| **Input** | GUI app source code | Any reference material |
+| **Loop** | Open (generate once) | Closed (build → verify → classify → fix → rebuild) |
+| **Builder/evaluator** | Same LLM | Separated (holdout scenarios) |
+| **Human effort** | Run generator, investigate failures | One command, zero interaction (standard mode) |
+| **Platforms** | 6 | 10+ (SKILL.md + MCP + adapters) |
+| **Post-deploy** | Frozen | Self-optimizing (`_optimize/`) |
+
+The projects are complementary: CLI-Anything could be the builder, cliskill the factory — generating wrappers with CLI-Anything's patterns, verifying them with cliskill's holdout loop.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

@@ -280,6 +280,29 @@ agent-skill-creator remains excellent at what it does — it's the best skill bu
 
 Both projects stay independent. agent-skill-creator continues to evolve as the implementation engine. cliskill orchestrates it within a closed-loop pipeline where "it compiled" is no longer sufficient — "it works correctly against scenarios the builder never saw" is the bar.
 
+## Relationship to CLI-Anything
+
+[CLI-Anything](https://github.com/HKUDS/CLI-Anything) (16k+ GitHub stars) wraps GUI applications (GIMP, Blender, Audacity) as CLI tools for AI agents. It shares the goal of making software agent-controllable via shell commands, but the architecture is fundamentally different.
+
+CLI-Anything is an **open-loop prompt template**: a HARNESS.md file instructs Claude Code to analyze source code, generate a Click-based CLI wrapper, write tests, and ship. The same LLM that builds the CLI also writes and runs the tests. There is no independent verification, no failure classification, no repair loop, and no continuous optimization. Quality depends entirely on what the LLM produces in a single pass (or a few manual `/refine` passes).
+
+The gap is visible in [Issue #16](https://github.com/HKUDS/CLI-Anything/issues/16): wrapping `gedit` produced 42 passing tests — but the CLI was entirely mocked. It simulated operations in-memory without actually controlling the software. The tests passed because the builder graded its own homework.
+
+| Capability | CLI-Anything | cliskill |
+|---|---|---|
+| **Input** | GUI app source code | Any reference material (APIs, docs, PDFs, repos) |
+| **Loop** | Open-loop (generate, test, maybe refine manually) | Closed-loop (SPECIFY → BUILD → VERIFY → classify → fix → rebuild) |
+| **Builder/evaluator** | Same LLM builds and tests | Builder never sees holdout scenarios |
+| **Failure handling** | Human investigates | Automated: Spec Gap → fix spec, Impl Gap → targeted fix |
+| **Mock detection** | None (Issue #16) | Holdout scenarios verify real backend calls |
+| **Optimization** | None — skill frozen after generation | Two layers: cliskill self-improves + every skill ships with `_optimize/` |
+| **Human involvement** | Choose app, run generator, investigate failures | Standard mode: one command, zero interaction |
+| **Cross-platform** | 6 platforms (Claude Code primary) | 10+ platforms via SKILL.md standard + MCP bridge + adapters |
+
+The projects are **complementary, not competitive**. CLI-Anything's domain (GUI app wrapping) is one cliskill doesn't cover — cliskill has no protocol for bridging GUI actions to backend APIs. Conversely, CLI-Anything has no equivalent to cliskill's discovery mode, research mode, vibe contract, or self-improvement.
+
+The interesting integration: CLI-Anything as the builder, cliskill as the factory. CLI-Anything generates the wrapper; cliskill's holdout scenarios independently verify it works; cliskill's repair loop fixes what doesn't. This would catch mocks like Issue #16 structurally — the builder can't pass holdout tests by grading its own homework.
+
 ## Scope and Limitations
 
 **cliskill is good at:**
