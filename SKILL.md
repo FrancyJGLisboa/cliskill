@@ -67,7 +67,7 @@ The `--` separator in discover mode separates capability sources (repos, code, d
 
 ## Core Principles
 
-1. **One human touchpoint: the vibe.** The human describes what they want and approves 3–5 binary success checks. After that, everything is autonomous. Review gates still exist but auto-approve when the vibe contract is satisfied — the human is notified, not blocked.
+1. **Zero friction by default.** When the intent is unambiguous, the pipeline runs end-to-end without any human interaction. The vibe contract is generated and verified internally — the human only sees it if something goes wrong. When the intent is ambiguous, the human approves 3–5 binary checks (one touchpoint). Review gates auto-approve when the vibe contract is satisfied.
 2. **Holdout scenarios are sacred. This is a hard constraint, not a guideline.** Never auto-fix a failing holdout test. Never weaken a scenario to make it pass. If the test is wrong, that's a Scenario Gap — escalate to the human. If cliskill ever auto-patches holdout scenarios, the entire verification primitive collapses.
 3. **Three loops maximum.** If the evaluation-fix cycle hasn't converged in 3 iterations, escalate with full diagnostics. Don't spin.
 4. **Fix spec first.** When both spec and implementation gaps exist, fix the spec first — implementation gaps often self-resolve when the spec is corrected.
@@ -90,10 +90,17 @@ cliskill ▸ {PHASE} ▸ {sub-phase}  {detail}
 
 Emit these at the indicated points — they are not optional:
 
-**VIBE phase:**
+**VIBE phase (silent path):**
 ```
 cliskill ▸ VIBE ▸ starting       Analyzing request...
-cliskill ▸ VIBE ▸ checks         Proposing {N} success checks
+cliskill ▸ VIBE ▸ checks         {N} checks generated (auto-approved — intent clear)
+cliskill ▸ VIBE ▸ done           Proceeding autonomously
+```
+
+**VIBE phase (interactive path):**
+```
+cliskill ▸ VIBE ▸ starting       Analyzing request...
+cliskill ▸ VIBE ▸ checks         {N} checks generated — need your input
 cliskill ▸ VIBE ▸ approved       {N}/{N} checks approved — vibe contract locked
 cliskill ▸ VIBE ▸ done           Proceeding autonomously
 ```
@@ -606,11 +613,11 @@ Regressions in existing scenarios are classified as Implementation Gaps and prio
 
 **Entry:** Runs automatically as the first step of every pipeline invocation (standard, discover, research, update). Not applicable to `/cliskill self-improve` or `/cliskill resume`.
 
-The vibe phase converts the human's raw intent into a **vibe contract** — 3–5 binary (yes/no) checks that define success for the entire pipeline. This is the only point where the human's judgment is required. Everything downstream is measured against these checks.
+The vibe phase converts the human's raw intent into a **vibe contract** — 3–5 binary (yes/no) checks that define success for the entire pipeline. The contract is always generated, but **the human only sees it when it matters**.
 
 ### Why This Exists
 
-The human is the weakest link in the chain. They can recognize "good" when they see it but struggle to articulate why. Review gates exist because cliskill can't verify "is this what you wanted?" without asking. The vibe contract fixes this — it captures "what you wanted" as binary checks *before* any work begins, so every downstream gate can self-verify.
+The vibe contract is invisible infrastructure — like a seatbelt that only locks when you brake hard. When the intent is clear ("wrap this API"), the checks are obvious and the human doesn't need to approve them. When the intent is ambiguous ("make this better"), the checks need human judgment. The phase adapts accordingly.
 
 ### Instructions
 
@@ -620,10 +627,45 @@ The human is the weakest link in the chain. They can recognize "good" when they 
 cliskill ▸ VIBE ▸ starting       Analyzing request...
 ```
 
-2. **Propose 3–5 binary checks.** Each check must be:
+2. **Generate 3–5 binary checks.** Each check must be:
    - **Yes/no answerable** — no scales, no "partially"
    - **Verifiable from the output** — an agent can check it without the human
    - **Meaningful** — failing this check means the skill is wrong, not just imperfect
+
+3. **Classify confidence: silent or interactive?**
+
+```
+SIGNAL → SILENT (auto-approve, don't present to human):
+  - Clear, specific references (API docs with endpoints, structured specs)
+  - Unambiguous goal ("wrap this API", "turn these docs into a CLI")
+  - Standard mode with well-defined input
+  - All generated checks are directly derivable from the references
+    (the references make the checks obvious — no judgment needed)
+
+SIGNAL → INTERACTIVE (present checks, wait for approval):
+  - Vague or open-ended goal ("make this better", "what can I build?")
+  - Discover or research mode (goal is exploratory)
+  - Mixed references where the scope isn't obvious
+  - User explicitly asked for input ("let me review", "what will you build?")
+  - Any check that requires domain knowledge the references don't contain
+```
+
+4. **Route by confidence.**
+
+**SILENT path (zero friction):**
+
+```
+cliskill ▸ VIBE ▸ checks         {N} checks generated (auto-approved — intent clear)
+cliskill ▸ VIBE ▸ done           Proceeding autonomously
+```
+
+Write the vibe contract to `.cliskill/vibe-contract.md` with `approval: auto` and proceed immediately. The checks are logged but never presented. If a downstream vibe-check fails (spec doesn't cover a check), the contract surfaces at that point — the human sees it for the first time only when there's a problem.
+
+**INTERACTIVE path (one touchpoint):**
+
+```
+cliskill ▸ VIBE ▸ checks         {N} checks generated — need your input
+```
 
 Present to the user:
 
@@ -634,25 +676,30 @@ Before I build anything, let's lock in what success looks like.
 
 Based on your request, here's what I'd measure:
 
-1. ☐ {check 1 — e.g., "Skill has a command for each API endpoint in the docs"}
-2. ☐ {check 2 — e.g., "All commands return structured JSON, not plain text"}
-3. ☐ {check 3 — e.g., "Error responses include the HTTP status code and API error message"}
-4. ☐ {check 4 — e.g., "Works without network access using cached/mocked responses"}
+1. ☐ {check 1 — e.g., "Skill covers at least 5 analytics from the textbook"}
+2. ☐ {check 2 — e.g., "All analytics verified against textbook formulas"}
+3. ☐ {check 3 — e.g., "RMSE improves over baseline"}
 
 Thumbs up, or veto any that are wrong?
 ```
 
-3. **Wait for response.** The human's job is minimal:
+Wait for response. The human's job is minimal:
    - 👍 or "go" — accept all checks
-   - Veto specific checks — "not 4, I need live API access"
-   - Add one — "also: must handle pagination"
+   - Veto specific checks — "not 3, I care about Pearson r not RMSE"
+   - Add one — "also: must handle missing data"
 
-4. **Lock the vibe contract.** Write to `.cliskill/vibe-contract.md`:
+```
+cliskill ▸ VIBE ▸ approved       {N}/{N} checks approved — vibe contract locked
+cliskill ▸ VIBE ▸ done           Proceeding autonomously
+```
+
+5. **Lock the vibe contract.** Write to `.cliskill/vibe-contract.md`:
 
 ```markdown
 # Vibe Contract
 
 locked: {ISO 8601}
+approval: {auto | human}
 mode: {standard | discover | research | update}
 source: {user's original request, abbreviated}
 
@@ -663,12 +710,29 @@ source: {user's original request, abbreviated}
 3. [description] — status: pending
 ```
 
+6. **Proceed to the next phase** (DISCOVER, RESEARCH, SPECIFY, or UPDATE depending on mode detection).
+
+### The Silent Path in Action
+
 ```
-cliskill ▸ VIBE ▸ approved       {N}/{N} checks approved — vibe contract locked
+User: /cliskill https://api.stripe.com/docs
+
+cliskill ▸ DETECT ▸ intent       Detected: STANDARD mode
+cliskill ▸ VIBE ▸ starting       Analyzing request...
+cliskill ▸ VIBE ▸ checks         4 checks generated (auto-approved — intent clear)
 cliskill ▸ VIBE ▸ done           Proceeding autonomously
+cliskill ▸ SPECIFY ▸ starting    Delegating to /clarity with 1 reference(s)
+...pipeline runs to completion...
+cliskill ▸ DEPLOY ▸ done         Deployed to claude, copilot, cursor
 ```
 
-5. **Proceed to the next phase** (DISCOVER, RESEARCH, SPECIFY, or UPDATE depending on mode detection).
+No interaction. One command in, deployed skill out. The vibe contract (`"covers all documented endpoints"`, `"JSON output on all commands"`, `"error responses include Stripe error codes"`, `"handles pagination"`) was generated, verified against the spec, and satisfied — all silently.
+
+If the spec had missed pagination, the user would have seen:
+```
+cliskill ▸ SPECIFY ▸ vibe-check   ✗ Check 4 not covered: "handles pagination"
+```
+And *only then* would the contract surface for the first time.
 
 ### How the Vibe Contract Replaces Review Gates
 

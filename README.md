@@ -11,13 +11,12 @@ cliskill turns any reference material — API docs, repositories, PDFs, course m
 A framework for generating self-installing, cross-platform, agent-friendly CLI skills from any reference material. The produced skills are git repos that work on any OS (`./skill` on macOS/Linux, `.\skill.ps1` on Windows) and any agent tool (Claude Code, Copilot, Cursor, Windsurf, Gemini CLI, Codex, Goose, OpenCode, Cline).
 
 ```
-References → VIBE → SPECIFY → BUILD → VERIFY → DEPLOY
-              ↑                  ↑        ↓
-         (human here)            ← REPAIR ←
-         (only here)
+References → SPECIFY → BUILD → VERIFY → DEPLOY
+                ↑        ↓
+                ← REPAIR ←
 ```
 
-The human describes what they want and approves 3–5 binary success checks. Everything after is autonomous — review gates auto-approve when the vibe contract is satisfied.
+One command in, deployed skill out. The vibe contract (3–5 binary success checks) is generated and verified internally — the human only sees it if something goes wrong. When the intent is ambiguous, cliskill asks once. Otherwise, zero interaction.
 
 ## Install
 
@@ -80,7 +79,7 @@ Maria has a FastAPI app and wants agents to use it. She clones cliskill, runs `.
 Maria: /cliskill ./docs/api-reference.md "wrap my FastAPI endpoints"
 ```
 
-Copilot loads the SKILL.md, runs VIBE (proposes 4 checks — "all CRUD endpoints covered?", "JSON output on all commands?", "auth errors return 401 with message?", "pagination works?"). Maria says "go." Pipeline runs autonomously — SPECIFY, BUILD, VERIFY (2 failures → 1 repair loop → all pass), DEPLOY. Skill installed to her detected platforms. Total human input: one sentence + one thumbs up.
+Copilot loads the SKILL.md. Intent is clear, references are specific — VIBE auto-approves silently (4 checks generated internally: "all CRUD endpoints covered?", "JSON output on all commands?", "auth errors return 401 with message?", "pagination works?"). Pipeline runs — SPECIFY, BUILD, VERIFY (2 failures → 1 repair loop → all pass), DEPLOY. Total human input: one sentence. Zero approvals.
 
 ### Kenji — Fullstack dev, Tokyo, Claude Code
 
@@ -90,7 +89,7 @@ Kenji has a portfolio analytics repo and a quantitative finance textbook PDF. He
 Kenji: /cliskill ./portfolio-repo ./quant-finance.pdf "what analytics can I build?"
 ```
 
-Intent inference detects DISCOVER mode. VIBE proposes 3 checks — "skill covers at least 5 analytics?", "all analytics verified against textbook formulas?", "works without API key for cached data?". Kenji approves. Discovery finds 14 feasible methods, ranks them, he picks Tier 1 + 2 (11 analytics). Pipeline builds, verifies (1 loop for VaR tail calculation), deploys. His agents can now run `portfolio-analytics sharpe --ticker AAPL,MSFT`.
+Intent inference detects DISCOVER mode. Intent is ambiguous (exploratory) — VIBE presents 3 checks: "skill covers at least 5 analytics?", "all analytics verified against textbook formulas?", "works without API key for cached data?". Kenji says "go." Discovery finds 14 feasible methods, ranks them, he picks Tier 1 + 2 (11 analytics). Pipeline builds, verifies (1 loop for VaR tail calculation), deploys. His agents can now run `portfolio-analytics sharpe --ticker AAPL,MSFT`.
 
 ### Priya — ML engineer, Bangalore, Cursor
 
@@ -110,7 +109,7 @@ Yuki wants to wrap an internal monitoring API:
 Yuki: /cliskill https://internal-api.company.com/docs
 ```
 
-The installer generated `.windsurf/workflows/cliskill.md` during install. Yuki types `/cliskill` in Cascade — the workflow adapter reads SKILL.md, runs the full pipeline. Standard mode, no discovery needed. VIBE, SPECIFY, BUILD, VERIFY (all pass first try), DEPLOY. Clean happy path.
+The installer generated `.windsurf/workflows/cliskill.md` during install. Yuki types `/cliskill` in Cascade — the workflow adapter reads SKILL.md, runs the full pipeline. Clear intent, specific API docs — VIBE auto-approves silently. SPECIFY, BUILD, VERIFY (all pass first try), DEPLOY. One command, zero interaction.
 
 ### Diego — Student, Mexico City, Gemini CLI
 
@@ -214,13 +213,13 @@ After enough builds, let cliskill analyze its own performance and propose improv
 
 ### Phase V: VIBE
 
-Before anything else, cliskill converts your request into 3–5 binary success checks — the **vibe contract**. You approve them (thumbs up/down, that's it). This is your only required touchpoint. Everything downstream auto-verifies against these checks.
+cliskill converts your request into 3–5 binary success checks — the **vibe contract**. When the intent is clear ("wrap this API"), the checks are generated and approved silently — zero interaction. When the intent is ambiguous ("what can I build?"), you approve them (thumbs up/down, one touchpoint). Either way, everything downstream auto-verifies against these checks.
 
 ### Phase 1: SPECIFY
 
 Delegates to `/clarity` (INGEST → SPECIFY → SCENARIO → HANDOFF). Produces a structured spec, holdout scenarios, and a skill brief.
 
-**Review Gate:** Auto-approves if the spec covers all vibe checks. Only stops if there's a gap between the spec and what you asked for.
+**Review Gate:** Auto-approves if the spec covers all vibe checks. Only stops if there's a gap — and that's the first time you see the vibe contract if it was auto-approved.
 
 ### Phase 2: BUILD
 

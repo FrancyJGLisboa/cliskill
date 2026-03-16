@@ -29,24 +29,22 @@ cd <skill>
 
 No `pip install`, no environment setup, no configuration. Clone and run.
 
-The human's only job: describe what they want and approve 3–5 binary success checks (the **vibe contract**). Everything after is autonomous — review gates auto-approve when the vibe contract is satisfied.
+When the intent is clear, the human's only job is to point at references. The vibe contract (3–5 binary success checks) is generated and verified internally — the human never sees it unless something goes wrong. When the intent is ambiguous, the human approves the checks once. Either way, everything after is autonomous.
 
 Three entry points, one pipeline:
 
 ```
 1. API docs → CLI skill (standard)
-   "wrap this API" → VIBE (3-5 checks) → SPECIFY → BUILD → VERIFY → DEPLOY
-   Human vibes once. Review gates auto-approve.
+   /cliskill https://api.stripe.com/docs → SPECIFY → BUILD → VERIFY → DEPLOY
+   Zero interaction. Vibe contract generated and verified silently.
 
 2. Repo + knowledge → analytics skill (discover)
-   "what can I build from these?" → auto-detects discover mode
-   → VIBE → DISCOVER → SPECIFY → BUILD → VERIFY → DEPLOY
-   Intent inference routes the user without subcommand knowledge.
+   /cliskill ./repo ./textbook.pdf "what can I build?" → auto-detects discover
+   → VIBE (interactive — intent ambiguous) → DISCOVER → SPECIFY → BUILD → VERIFY → DEPLOY
 
 3. Pipeline + metric → optimized model (research)
-   "make predictions better" → auto-detects research mode
-   → VIBE → NEGOTIATE → BOOTSTRAP → OPTIMIZE → REVIEW
-   Continuous optimization with experiment classification.
+   /cliskill ./pipeline ./methods.pdf "improve RMSE" → auto-detects research
+   → VIBE (interactive) → NEGOTIATE → BOOTSTRAP → OPTIMIZE → REVIEW
 ```
 
 Every produced skill ships with an `_optimize/` directory — an eval harness so it can self-improve post-deployment without cliskill being involved.
@@ -90,17 +88,17 @@ From PDF course formulas to working CLI analytics — verified, self-installing,
 
 ## Real-World Workflows
 
-**Maria (VS Code + Copilot, São Paulo)** — wraps her FastAPI app. Types `/cliskill ./docs/api-reference.md "wrap my endpoints"` in Copilot Chat agent mode. VIBE proposes 4 checks, she says "go." Pipeline runs autonomously — 1 repair loop, deploys. Total human input: one sentence, one thumbs up.
+**Maria (VS Code + Copilot, São Paulo)** — wraps her FastAPI app. Types `/cliskill ./docs/api-reference.md "wrap my endpoints"` in Copilot Chat agent mode. Clear intent — VIBE auto-approves silently. Pipeline runs — 1 repair loop, deploys. Total human input: one sentence. Zero approvals.
 
 **Kenji (Claude Code, Tokyo)** — has a portfolio repo and a finance textbook but doesn't know what to build. Types `/cliskill ./repo ./textbook.pdf "what analytics can I build?"`. Intent inference detects DISCOVER mode. Discovery ranks 14 feasible methods, he picks 11. Pipeline builds and verifies. Agents can now run `portfolio-analytics sharpe --ticker AAPL,MSFT`.
 
 **Priya (Cursor, Bangalore)** — wants to improve her crop yield RMSE. Types `/cliskill ./pipeline ./methods.pdf "optimize RMSE"`. Intent inference detects RESEARCH mode. OPTIMIZE runs 12 experiments, improves RMSE from 0.42 to 0.31. She accepts the best model.
 
-**Yuki (Windsurf, Osaka)** — wraps an internal monitoring API. Types `/cliskill` in Cascade — the workflow adapter (generated during install) reads SKILL.md, runs the pipeline. Happy path: all scenarios pass first try.
+**Yuki (Windsurf, Osaka)** — wraps an internal monitoring API. Types `/cliskill https://internal-api.company.com/docs` in Cascade — workflow adapter reads SKILL.md, VIBE auto-approves, pipeline runs. All scenarios pass first try. One command, zero interaction.
 
 **Diego (Gemini CLI, Mexico City)** — student with weather CSVs and a climate textbook. Types `/cliskill ./data ./textbook.pdf "what can I analyze?"`. DISCOVER finds 8 analyses, he picks 4. Gets a working CLI tool for his class demo. Zero prior knowledge of cliskill.
 
-Every persona: clone, run installer, describe what they want, approve checks, walk away. The tool they use doesn't matter — cliskill reaches all of them.
+Standard mode personas (Maria, Yuki): one command, zero interaction. Exploratory mode personas (Kenji, Priya, Diego): one command, one approval. The tool they use doesn't matter — cliskill reaches all of them.
 
 ## Cross-Platform Delivery
 
