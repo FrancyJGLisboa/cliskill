@@ -782,6 +782,7 @@ The user is notified but not blocked. If they want to stop deployment, they can 
    - **INGEST**: Consume references → `.clarity/context.md`
    - **SPECIFY**: Generate structured spec → `.clarity/spec.md`
    - **SCENARIO**: Create holdout scenarios → `scenarios/SC-*.md`
+     - **Must include harness scenarios**: at least 2 scenarios testing invalid input (expect structured validation error, not crash), and at least 1 scenario testing missing prerequisites or network failure (expect graceful error with hint)
    - **HANDOFF**: Generate skill brief → `.clarity/skill-brief.md`
 3. Write state:
    ```
@@ -849,11 +850,54 @@ On approval, update state:
 
 1. Read `.clarity/skill-brief.md`.
 2. If this is a rebuild (loop_count > 0), also read `.cliskill/loop-{N}/changes.md` for rebuild context.
-3. Invoke `/agent-skill-creator` with the skill brief:
+3. Invoke `/agent-skill-creator` with the skill brief **plus the harness requirements below.**
    - Agent-skill-creator skips Phase 1 (Discovery) and Phase 2 (Design) — the brief has those decisions.
    - It runs Phase 3 (Architecture), Phase 4 (Detection), Phase 5 (Implementation).
 4. Agent-skill-creator's built-in validation must pass (SKILL.md structure, security scan).
 5. If validation fails, treat as an implementation issue and let agent-skill-creator fix it (this is within its own pipeline, not cliskill's loop).
+
+### Mandatory Harness Patterns (every produced skill must include these)
+
+Every skill produced by cliskill must ship with harness patterns baked into the code — not as prompt instructions, but as executable Python. Append these requirements to the skill brief before passing to agent-skill-creator:
+
+**a. Self-bootstrapping wrappers:**
+- `./skill-name` (bash) and `.\skill-name.ps1` (PowerShell) at the repo root
+- First run auto-installs Python venv, uv, and pip dependencies
+- Bootstrap messages go to stderr; JSON stdout stays clean for agents
+
+**b. Input validation gate (`validate.py`):**
+- Every command that accepts user input must validate before computing
+- Numeric inputs: reject negatives where nonsensical, reject extreme values with bounds
+- String inputs: validate against known enums (commodity names, indicator slugs)
+- On validation failure: return JSON to stderr with `error_type: validation` and field-level `details` array
+
+**c. Output sanity checks:**
+- After computation, check results against domain-specific sanity bounds
+- Attach `_warnings` array to output when values are unusual but not invalid
+- Never silently return garbage — either warn or reject
+
+**d. Structured error handling:**
+- All errors as JSON to stderr: `{"error": "message", "error_type": "validation|runtime|network", "hint": "suggested action"}`
+- Exit code 1 on all errors
+- Never expose stack traces to the user — catch and classify
+
+**e. `--check-prereqs` command:**
+- Checks Python version, required packages, network access, API keys (if needed)
+- Returns JSON: `{"ready": true/false, "checks": [...]}`
+
+**f. `--diagnostics` command:**
+- Returns skill metadata: name, version, harness_level, commands, harness_features, data_source
+
+**g. SKILL.md metadata:**
+- `activation: /{skill-name}` in frontmatter (unique namespace)
+- `provenance:` block with maintainer, version, dates, source_references, holdout results, repair_loops, harness_level
+- `## Prerequisites` section listing runtime, deps, API keys, network requirements
+- Anti-activation instruction in anti-goals: "Do NOT activate on general queries — wait for explicit `/{skill-name}` invocation"
+
+**h. Provenance collection:**
+- Throughout the pipeline, collect: maintainer (from git config), source references (from /clarity), holdout pass rate, repair loop count, build timestamp
+- Write all into the produced SKILL.md frontmatter at DEPLOY time
+
 6. **Generate eval harness.** After the skill build completes successfully:
    - Generate `{skill-dir}/_optimize/eval.py` from the holdout scenarios — a script that runs each scenario programmatically and outputs `{"pass_rate": N, "quality_score": null, "scenarios": {...}}`.
    - Generate `{skill-dir}/_optimize/program.md` from the template in `references/self-improvement-protocol.md` §3, filled with skill-specific details (name, editable files, strategy classes).
@@ -942,7 +986,7 @@ if loop_count > 1: read .cliskill/loop-{loop_count-1}/diff.md to avoid repeating
 # spec update (one extra loop) is far lower than the cost of a missed spec gap
 # (all three loops wasted patching code with the wrong spec underneath).
 for each failure in eval report:
-    classify as: Spec Gap | Implementation Gap | Scenario Gap
+    classify as: Spec Gap | Implementation Gap | Scenario Gap | Harness Gap
     record classification in .cliskill/loop-{loop_count}/changes.md
 
 # Route by failure type
@@ -964,6 +1008,16 @@ if ONLY Implementation Gaps:
     append rebuild context to .cliskill/loop-{loop_count}/changes.md
     write structured diff to .cliskill/loop-{loop_count}/diff.md
     → go to Phase 2: BUILD with rebuild context
+
+if any Harness Gaps:
+    # Missing validation gate, sanity check, or structured error handler
+    # Route to BUILD with targeted prompt to add the missing harness pattern
+    # Do NOT rebuild the whole skill — only add the missing pattern
+    for each Harness Gap:
+        identify which harness pattern is missing (validation, sanity, error handler, prereqs)
+        generate targeted addition prompt
+    append to .cliskill/loop-{loop_count}/changes.md
+    → go to Phase 2: BUILD with harness-specific rebuild context
 
 # Convergence check
 if same failure persists for 2 consecutive loops:
@@ -1106,8 +1160,9 @@ cliskill ▸ DEPLOY ▸ metrics       Build #{N}: {first_pass | loops: N | escal
 ```
 ## cliskill — Complete
 
-✓ Specified: {N} requirements, {N} holdout scenarios
+✓ Specified: {N} requirements, {N} holdout scenarios (including {N} harness scenarios)
 ✓ Built: {skill-name} ({N} files)
+✓ Harness: input validation, output sanity, --check-prereqs, --diagnostics, self-bootstrap wrappers
 ✓ Verified: {N}/{N} scenarios passed {loop info if applicable}
 ✓ Deployed to: {platform list}
 ✓ Optimization: _optimize/ ready (baseline pass_rate: {v})
