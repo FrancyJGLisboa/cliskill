@@ -1137,14 +1137,24 @@ The user can still intervene — if they say "wait" or "stop" before deployment 
 
 ### On Deploy
 
-1. **Log build metrics.** Load `references/self-improvement-protocol.md`. Append a row to `~/acc/cliskill/.cliskill-meta/results.tsv` with this build's outcome (date, skill_name, mode, scenario_count, loop_count, first_pass, escalated, escalation_reason, notes). Create the file with header if it doesn't exist. See §2 of the protocol for field definitions.
+1. **Check for namespace collisions.** Before installing, run:
+   ```bash
+   python3 scripts/check_collision.py {skill-name}
+   ```
+   If exit code 1 (collision found), halt deployment and report:
+   ```
+   cliskill ▸ DEPLOY ▸ collision     ✗ /{skill-name} conflicts with {conflicting_skill_path}
+   ```
+   Ask user: rename, replace, or scope to project-level only.
+
+2. **Log build metrics.** Load `references/self-improvement-protocol.md`. Append a row to `~/acc/cliskill/.cliskill-meta/results.tsv` with this build's outcome (date, skill_name, mode, scenario_count, loop_count, first_pass, escalated, escalation_reason, notes). Create the file with header if it doesn't exist. See §2 of the protocol for field definitions.
 
 ```
 cliskill ▸ DEPLOY ▸ metrics       Logging build outcome to .cliskill-meta/results.tsv
 cliskill ▸ DEPLOY ▸ metrics       Build #{N}: {first_pass | loops: N | escalated}
 ```
 
-2. Use agent-skill-creator's auto-install to deploy the skill to all detected platforms.
+3. Use agent-skill-creator's auto-install to deploy the skill to all detected platforms.
 3. Offer team sharing options (git remote, registry).
 4. Update state:
    ```
